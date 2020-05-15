@@ -126,9 +126,9 @@ class InstantMessagingWidget extends StatelessWidget {
   }
 
   void _send(BuildContext context) async {
-    print("sendnig message: ${widget._textEditingController.text}");
+    print("sending message: ${widget._textEditingController.text}");
     String cipher = await BlocProvider.of<E2eeBloc>(context).onEncrypt(widget._textEditingController.text);
-    if (cipher.isNotEmpty) {
+    if (cipher != null && cipher.isNotEmpty) {
       try{
         BlocProvider.of<InstantMessagingBloc>(context).send(cipher);
       }catch(e){print(e);}

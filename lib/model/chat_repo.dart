@@ -51,7 +51,6 @@ class ChatRepo {
         for(int i = 0; i < participantInstances.length; i++){
           participantUids.add((await participantInstances[i].get()).data["uid"]);
         }
-        print(participantUids);
         return participantUids;
       }catch(e){print(e);}
     }

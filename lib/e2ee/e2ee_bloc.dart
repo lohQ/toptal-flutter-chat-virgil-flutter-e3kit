@@ -19,7 +19,7 @@ class E2eeBloc extends Bloc<E2eeEvent, E2eeState>{
     await device.initialize();
     final isSignedIn = await device.isSignedIn();
     if(isSignedIn){
-      add(E2eeInitializeEvent());
+      add(E2eeOperationCompleted());
     }else{
       final hasAccount = await device.findSelf(uid);
       if(hasAccount){
@@ -38,14 +38,14 @@ class E2eeBloc extends Bloc<E2eeEvent, E2eeState>{
           print("added error event");
         }
       }
-      add(E2eeInitializeEvent());
+      add(E2eeOperationCompleted());
     }
   }
 
   void onLogout() async {
     add(E2eeInProgressEvent());
     await device.cleanUp();
-    add(E2eeLogoutEvent());
+    add(E2eeOperationCompleted());
   }
 
   Future<void> onStartChat(List<String> identities) async {
@@ -53,16 +53,11 @@ class E2eeBloc extends Bloc<E2eeEvent, E2eeState>{
     try{
       device.publicKeyMap = await device.findUsers(identities);
       print("publicKeyMap now has ${device.publicKeyMap.length} items");
-      add(E2eeStartChatEvent());
+      add(E2eeOperationCompleted());
     }catch(e){
       add(E2eeErrorEvent(e));
     }
   }
-
-  // not needed - publicKeyMap is overwritten whenever user enters a new chatroom
-  // void onExitChat(){
-  //   publicKeyMap.clear();
-  // }
 
   // somewhat out of place...
   Future<String> onEncrypt(String plainText) async {
@@ -92,11 +87,7 @@ class E2eeBloc extends Bloc<E2eeEvent, E2eeState>{
       yield E2eeState.decrypt(event.decryptedText, event.timestamp);
     }else if(event is E2eeErrorEvent){
       yield E2eeState.error();
-    }else if(event is E2eeStartChatEvent){
-      yield E2eeState.loading(false);
-    }else if(event is E2eeInitializeEvent){
-      yield E2eeState.loading(false);
-    }else if(event is E2eeLogoutEvent){
+    }else if(event is E2eeOperationCompleted){
       yield E2eeState.loading(false);
     }
   }

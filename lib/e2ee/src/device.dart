@@ -6,7 +6,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 class Device {
   EThree eThree;
   String identity;
-  Map<String,String> publicKeyMap;
+  Map<String,String> publicKeyMap = Map<String, String>();
   static Device _instance = Device._internal();
 
   Device._internal();

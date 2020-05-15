@@ -170,7 +170,7 @@ class MainWidget extends StatelessWidget {
     final curUser = await UserRepo.getInstance().getCurrentUser();
     final users = await ChatRepo.getInstance().getUsersFromChatroom(chatroom.id);
     users.remove(curUser.uid);
-    await BlocProvider.of<E2eeBloc>(contextWithE2ee).onStartChat(users);
+    await BlocProvider.of<E2eeBloc>(contextWithE2ee).onStartChat([users.first]); // users only has one element
     NavigationHelper.navigateToInstantMessaging(parentContext, chatroom.displayName, chatroom.id, addToBackStack: true);
   }
 }

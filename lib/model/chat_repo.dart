@@ -96,7 +96,8 @@ class ChatRepo {
         .snapshots()
         .map((data) {
           Chatroom chatroom = Deserializer.deserializeChatroomMessages(data, _chatUsersSubject.value);
-          chatroom.messages.sort((message1, message2) => message1.timestamp.compareTo(message2.timestamp));
+          // chatroom.messages.sort((message1, message2) => message1.timestamp.compareTo(message2.timestamp));
+          chatroom.messages.sort((message1, message2) => message2.timestamp.compareTo(message1.timestamp));
           return chatroom;
     });
   }

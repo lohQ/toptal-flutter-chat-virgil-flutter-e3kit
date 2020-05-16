@@ -21,6 +21,7 @@ class InstantMessagingBloc extends Bloc<InstantMessagingEvent, InstantMessagingS
     final User user = await UserRepo.getInstance().getCurrentUser();
     chatroomSubscription = ChatRepo.getInstance().getMessagesForChatroom(chatroomId).listen((chatroom) async {
       if (chatroom != null) {
+        print("chatroomSubscription triggered");
         Stream<Message> processedMessagesStream = Stream.fromIterable(chatroom.messages)
             .asyncMap((message) async {
               if (message.value.startsWith("_uri:")) {

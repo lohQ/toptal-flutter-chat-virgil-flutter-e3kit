@@ -45,6 +45,9 @@ class E2eeBloc extends Bloc<E2eeEvent, E2eeState>{
   void onLogout() async {
     add(E2eeInProgressEvent());
     await device.cleanUp();
+    device.eThree = null;
+    device.publicKeyMap.clear();
+    device.identity = null;
     add(E2eeOperationCompleted());
   }
 
@@ -58,20 +61,6 @@ class E2eeBloc extends Bloc<E2eeEvent, E2eeState>{
       add(E2eeErrorEvent(e));
     }
   }
-
-  // somewhat out of place...
-  Future<String> onEncrypt(String plainText) async {
-    // add(E2eeInProgressEvent());
-    return await device.encrypt(plainText);
-    // add(E2eeEncryptionEvent(cipherText));
-  }
-
-  void onDecrypt(Message encryptedMessage) async {
-    add(E2eeInProgressEvent());
-    final plainText = await device.decrypt(encryptedMessage.value, encryptedMessage.author.uid);
-    add(E2eeDecryptionEvent(plainText, encryptedMessage.timestamp));
-  }
-
   @override
   E2eeState get initialState {
     return E2eeState.initial();
@@ -83,8 +72,8 @@ class E2eeBloc extends Bloc<E2eeEvent, E2eeState>{
       yield E2eeState.loading(true);
     // }else if(event is E2eeEncryptionEvent){
     //   yield E2eeState.encrypt(event.encryptedText);
-    }else if(event is E2eeDecryptionEvent){
-      yield E2eeState.decrypt(event.decryptedText, event.timestamp);
+    // }else if(event is E2eeDecryptionEvent){
+    //   yield E2eeState.decrypt(event.decryptedText, event.timestamp);
     }else if(event is E2eeErrorEvent){
       yield E2eeState.error();
     }else if(event is E2eeOperationCompleted){

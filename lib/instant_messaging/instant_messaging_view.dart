@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:toptal_chat/e2ee/e2ee_bloc.dart';
-import 'package:toptal_chat/e2ee/e2ee_widget.dart';
+import 'package:toptal_chat/e2ee/src/device.dart';
 
 import '../util/constants.dart';
 import '../model/message.dart';
@@ -30,12 +30,9 @@ class _InstantMessagingState extends State<InstantMessagingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider<E2eeBloc>(
-      create: (context) => E2eeBloc(),
-      child: BlocProvider<InstantMessagingBloc>(
+    return BlocProvider<InstantMessagingBloc>(
         create: (context) => InstantMessagingBloc(chatroomId),
         child: InstantMessagingWidget(widget: widget),
-      )
     );
   }
 
@@ -93,14 +90,14 @@ class InstantMessagingWidget extends StatelessWidget {
             ),
             Expanded(
               child: 
-              _instantMessagingBlocBuilderWithE2eeProvider(context)
+              _instantMessagingBlocBuilder(context)
             )
           ]
         )
     );
   }
 
-  Widget _instantMessagingBlocBuilderWithE2eeProvider(BuildContext context){
+  Widget _instantMessagingBlocBuilder(BuildContext context){
     return BlocBuilder(
       bloc: BlocProvider.of<InstantMessagingBloc>(context),
       builder: (context, InstantMessagingState state) {
@@ -116,8 +113,9 @@ class InstantMessagingWidget extends StatelessWidget {
                   horizontal: UIConstants.SMALLER_PADDING,
                   vertical: UIConstants.SMALLER_PADDING,
                 ),
-                itemBuilder: (context, index) =>
-                    MessageItem(state.messages[state.messages.length - 1 - index]),
+                itemBuilder: (context, index){
+                    return MessageItem(state.messages[index]);
+                },
                 itemCount: state.messages.length,
                 reverse: true,
               ),
@@ -127,7 +125,7 @@ class InstantMessagingWidget extends StatelessWidget {
 
   void _send(BuildContext context) async {
     print("sending message: ${widget._textEditingController.text}");
-    String cipher = await BlocProvider.of<E2eeBloc>(context).onEncrypt(widget._textEditingController.text);
+    String cipher = await Device().encrypt(widget._textEditingController.text);
     if (cipher != null && cipher.isNotEmpty) {
       try{
         BlocProvider.of<InstantMessagingBloc>(context).send(cipher);
@@ -174,7 +172,66 @@ class MessageItem extends StatelessWidget{
         ],
       );
     }
-    return MessageFromCloud(message, context);
+    return MessageFromCloud(message);
+  }
+}
+
+class MessageFromCloud extends StatelessWidget{
+  final Message message;
+  Color _backgroundColor;
+  TextAlign _textAlign; 
+  Future<dynamic> _decrypted;
+  String _text;
+
+  MessageFromCloud(this.message){
+    _text = message.value;
+    if(message.outgoing){
+      _backgroundColor = Colors.lightBlueAccent;
+      _textAlign = TextAlign.end;
+    }else{
+      _backgroundColor = Colors.blueAccent;
+      _textAlign = TextAlign.start;
+    }
+    _decrypted = Device().decrypt(message.value, message.author.uid);
+
+  }
+
+  @override
+  Widget build(BuildContext context){
+    return Container(
+        child: 
+        FutureBuilder(
+          future: _decrypted,
+          builder: (context, snapshot){
+            if(snapshot.connectionState == ConnectionState.done){
+              if(snapshot.hasError){
+                _text = "failed decrypting - error";
+              }else{
+                if(snapshot.hasData){
+                  _text = snapshot.data;
+                }else{
+                  _text = "failed decrypting - no error";
+                }}
+            }else if(snapshot.connectionState == ConnectionState.waiting){
+              _text = "decrypting...";
+            }else if(snapshot.connectionState == ConnectionState.none){
+              _text = "no connectivity";
+            }
+            return Text(
+              _text,
+              style: TextStyle(color: Colors.white),
+              textAlign: _textAlign,
+            );
+          }
+        ),
+        decoration: BoxDecoration(
+            color: _backgroundColor, borderRadius: BorderRadius.all(Radius.circular(6.0))),
+        padding: EdgeInsets.all(UIConstants.SMALLER_PADDING),
+        margin: EdgeInsets.symmetric(
+          vertical: UIConstants.SMALLER_PADDING / 2.0,
+          horizontal: 0.0,
+        ),
+    );
   }
 }
 

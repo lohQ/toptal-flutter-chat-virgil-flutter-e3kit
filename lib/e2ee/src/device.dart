@@ -53,29 +53,16 @@ class Device {
   Future<bool> register() async {
     final eThree = getEThree();
 
-    // if(await eThree.hasLocalPrivateKey()){
-    //   try{
-    //     await eThree.unregister();
-    //   }catch(e){
-    //     _log('Failed unregistering: $e');
-    //     await cleanUp();
-    //   }
-    // }
-
-    // try {
+    try{
       //# start of snippet: e3kit_register
       await eThree.register();
       //# end of snippet: e3kit_register
       _log('Registered');
       return true;
-    // } on PlatformException catch(err) { 
-    //   _log('Failed registering: $err'); 
-    //   return false;
-    //   // if (err.code == 'user_is_already_registered') {
-    //   //   // _log('User is registered without local private key');
-    //   //   // await rotatePrivateKey();
-    //   // }
-    // }
+    }catch(err){
+      _log(err);
+      return false;
+    }
   }
 
   Future<bool> findSelf(String identity) async {
@@ -114,7 +101,7 @@ class Device {
       //# start of snippet: e3kit_sign_and_encrypt
       encryptedText = await eThree.encrypt(text, publicKeyMap);
       //# end of snippet: e3kit_sign_and_encrypt
-      _log('Encrypted and signed: \'$encryptedText\'.');
+      // _log('Encrypted and signed: \'$encryptedText\'.');
     } catch(err) {
       _log('Failed encrypting and signing: $err');
     }
@@ -131,7 +118,7 @@ class Device {
       //# start of snippet: e3kit_decrypt_and_verify
       decryptedText = await eThree.decrypt(text, publicKeyMap[userId]).timeout(Duration(seconds:10));
       //# end of snippet: e3kit_decrypt_and_verify
-      _log('Decrypted and verified: \'$decryptedText');
+      // _log('Decrypted and verified: \'$decryptedText');
     } catch(err) {
       _log('Failed decrypting and verifying: $err');
     }

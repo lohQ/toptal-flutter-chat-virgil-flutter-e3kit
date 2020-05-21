@@ -8,7 +8,6 @@ This app is built on top of Toptal Flutter Chat App (https://github.com/nstosic/
 
  - BLoC architecture. 
  - Facebook sign in and Google sign in. 
- - E3kit default encryption. (https://developer.virgilsecurity.com/docs/e3kit/end-to-end-encryption/default/)
  - Support 1-to-1 messaging 
  - Support double ratchet algorithm (Android only). 
  - Currently does not support group messaging. 

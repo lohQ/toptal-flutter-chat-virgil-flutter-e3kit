@@ -16,6 +16,7 @@ This app is built on top of Toptal Flutter Chat App (https://github.com/nstosic/
 # Future Improvements
 
  - Persist chat history. 
+ - Enforce success ratchet channel creation. 
  - Handle Google/Facebook Sign In exceptions. 
  - Enable group messaging. 
 

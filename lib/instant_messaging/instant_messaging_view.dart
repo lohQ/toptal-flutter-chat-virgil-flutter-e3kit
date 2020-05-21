@@ -1,51 +1,89 @@
 import 'dart:io';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:toptal_chat/e2ee/e2ee_bloc.dart';
+import 'package:toptal_chat/e2ee/e2ee_wrapper.dart';
 import 'package:toptal_chat/e2ee/src/device.dart';
+import 'package:toptal_chat/model/chatroom.dart';
+import 'package:toptal_chat/model/message.dart';
 
 import '../util/constants.dart';
-import '../model/message.dart';
 import 'instant_messaging_bloc.dart';
 import 'instant_messaging_state.dart';
 
 class InstantMessagingScreen extends StatefulWidget {
-  InstantMessagingScreen({Key key, @required this.displayName, @required this.chatroomId})
-      : super(key: key);
+  InstantMessagingScreen(
+    {Key key, 
+    @required this.chatroom,
+    @required this.isNew}) : super(key: key);
 
-  final String displayName;
-  final String chatroomId;
-  final TextEditingController _textEditingController = TextEditingController();
+  final SelectedChatroom chatroom;
+  final bool isNew;
 
   @override
-  State<StatefulWidget> createState() => _InstantMessagingState(chatroomId);
+  State<StatefulWidget> createState() => _InstantMessagingState();
 }
 
 class _InstantMessagingState extends State<InstantMessagingScreen> {
-  final String chatroomId;
+  final E2eeBloc _e2eeBloc = E2eeBloc();
 
-  _InstantMessagingState(this.chatroomId);
+  @override
+  void initState(){
+    super.initState();
+    if(widget.isNew){
+      _e2eeBloc.onCreateChat(widget.chatroom.oppId);
+    }else{
+      _e2eeBloc.onStartChat(widget.chatroom.oppId);
+    }
+  }
+
+  @override
+  void dispose(){
+    _e2eeBloc.close();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider<InstantMessagingBloc>(
-        create: (context) => InstantMessagingBloc(chatroomId),
-        child: InstantMessagingWidget(widget: widget),
+    return BlocProvider<E2eeBloc>(
+      create: (context) => _e2eeBloc,
+      child: E2eeWrapper(
+        BlocProvider<InstantMessagingBloc>(
+          create: (context) => InstantMessagingBloc(widget.chatroom.id, widget.chatroom.oppId),
+          child: InstantMessagingWidget(widget.chatroom.id, widget.chatroom.displayName, widget.chatroom.oppId)),
+        "error initializing double ratchet session"
+        ),
     );
   }
-
 }
 
 class InstantMessagingWidget extends StatelessWidget {
-  const InstantMessagingWidget({Key key, @required this.widget}) : super(key: key);
-  final InstantMessagingScreen widget;
+  final String chatroomId; final String displayName; final String oppId; 
+  InstantMessagingWidget(this.chatroomId, this.displayName, this.oppId, {Key key}) : super(key: key);
+  final TextEditingController _textEditingController = TextEditingController();
+  final messageToDisplay = List<MessageToDisplay>();
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        appBar: AppBar(title: Text(widget.displayName)),
+        appBar: AppBar(
+          title: Text(displayName),
+          actions: <Widget>[
+            IconButton(
+              icon: Icon(Icons.delete),
+              onPressed: () async {
+                try{
+                  await Device().deleteRatchetChannel(oppId);
+                  await Firestore.instance.collection(FirestorePaths.CHATROOMS_COLLECTION)
+                    .document(chatroomId).delete()
+                    .whenComplete((){Navigator.pop(context);});
+                }catch(e){
+                  print("error deleting ratchet channel/deleting chatroom: $e");
+                }},
+            )]),
         body: Column(
           mainAxisSize: MainAxisSize.max,
           verticalDirection: VerticalDirection.up,
@@ -61,7 +99,7 @@ class InstantMessagingWidget extends StatelessWidget {
                         horizontal: UIConstants.SMALLER_PADDING),
                     child: TextField(
                       maxLines: null,
-                      controller: widget._textEditingController,
+                      controller: _textEditingController,
                       focusNode: FocusNode(),
                       style: TextStyle(color: Colors.black),
                       cursorColor: Colors.blueAccent,
@@ -106,6 +144,9 @@ class InstantMessagingWidget extends StatelessWidget {
             child: Text("An error ocurred"),
           );
         } else {
+          if(state.message != null){
+            messageToDisplay.insert(0,MessageToDisplay(state.message.value, false));
+          }
           return Container(
               child: ListView.builder(
                 shrinkWrap: true,
@@ -113,29 +154,28 @@ class InstantMessagingWidget extends StatelessWidget {
                   horizontal: UIConstants.SMALLER_PADDING,
                   vertical: UIConstants.SMALLER_PADDING,
                 ),
-                itemBuilder: (context, index){
-                    return MessageItem(state.messages[index]);
-                },
-                itemCount: state.messages.length,
+                itemCount: messageToDisplay.length,
                 reverse: true,
+                itemBuilder: (context, index){
+                  final message = messageToDisplay[index];
+                  if (message.value.startsWith("_uri:")) {
+                    return ImageMessage(message);
+                  }else{
+                    return TextMessage(message);
+                  }
+                },
               ),
           );
       }});
   }
 
   void _send(BuildContext context) async {
-    print("sending message: ${widget._textEditingController.text}");
-    String cipher = await Device().encrypt(widget._textEditingController.text);
-    if (cipher != null && cipher.isNotEmpty) {
-      try{
-        BlocProvider.of<InstantMessagingBloc>(context).send(cipher);
-      }catch(e){print(e);}
-      widget._textEditingController.text = "";
-    }
+    BlocProvider.of<InstantMessagingBloc>(context).send(_textEditingController.text, messageToDisplay);
+    _textEditingController.text = "";
   }
 
   void _sendFile(BuildContext context, File file) {
-    BlocProvider.of<InstantMessagingBloc>(context).sendFile(file);
+    BlocProvider.of<InstantMessagingBloc>(context).sendFile(file, messageToDisplay);
   }
 
   void _openPictureDialog(BuildContext context) async {
@@ -147,44 +187,38 @@ class InstantMessagingWidget extends StatelessWidget {
   }
 }
 
-class MessageItem extends StatelessWidget{
-  final Message message;
-  MessageItem(this.message);
+class ImageMessage extends StatelessWidget{
+  final MessageToDisplay message;
+  String url;
+  MainAxisAlignment _alignment;
+  ImageMessage(this.message){
+    url = message.value.substring("_uri:".length);
+    if (message.outgoing){
+      _alignment = MainAxisAlignment.start;
+    }else{
+      _alignment = MainAxisAlignment.end;
+    }
+  }
   @override
   Widget build(BuildContext context){
-    if (message.value.startsWith("_uri:")) {
-      final String url = message.value.substring("_uri:".length);
-      MainAxisAlignment _alignment;
-      if (message.outgoing){
-        _alignment = MainAxisAlignment.start;
-      }else{
-        _alignment = MainAxisAlignment.end;
-      }
-      return Row(
-        mainAxisAlignment: _alignment,
-        children: <Widget>[
-          Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(8.0)
-            ),
-            child: Image.network(url, width: 256),
+    return Row(
+      mainAxisAlignment: _alignment,
+      children: <Widget>[
+        Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8.0)
           ),
-        ],
-      );
-    }
-    return MessageFromCloud(message);
+          child: Image.network(url, width: 256))],
+    );
   }
 }
 
-class MessageFromCloud extends StatelessWidget{
-  final Message message;
+class TextMessage extends StatelessWidget{
+  final MessageToDisplay message;
   Color _backgroundColor;
   TextAlign _textAlign; 
-  Future<dynamic> _decrypted;
-  String _text;
 
-  MessageFromCloud(this.message){
-    _text = message.value;
+  TextMessage(this.message){
     if(message.outgoing){
       _backgroundColor = Colors.lightBlueAccent;
       _textAlign = TextAlign.end;
@@ -192,38 +226,15 @@ class MessageFromCloud extends StatelessWidget{
       _backgroundColor = Colors.blueAccent;
       _textAlign = TextAlign.start;
     }
-    _decrypted = Device().decrypt(message.value, message.author.uid);
-
   }
 
   @override
   Widget build(BuildContext context){
     return Container(
-        child: 
-        FutureBuilder(
-          future: _decrypted,
-          builder: (context, snapshot){
-            if(snapshot.connectionState == ConnectionState.done){
-              if(snapshot.hasError){
-                _text = "failed decrypting - error";
-              }else{
-                if(snapshot.hasData){
-                  _text = snapshot.data;
-                }else{
-                  _text = "failed decrypting - no error";
-                }}
-            }else if(snapshot.connectionState == ConnectionState.waiting){
-              _text = "decrypting...";
-            }else if(snapshot.connectionState == ConnectionState.none){
-              _text = "no connectivity";
-            }
-            return Text(
-              _text,
-              style: TextStyle(color: Colors.white),
-              textAlign: _textAlign,
-            );
-          }
-        ),
+        child: Text(
+          message.value,
+          style: TextStyle(color: Colors.white),
+          textAlign: _textAlign),
         decoration: BoxDecoration(
             color: _backgroundColor, borderRadius: BorderRadius.all(Radius.circular(6.0))),
         padding: EdgeInsets.all(UIConstants.SMALLER_PADDING),

@@ -3,9 +3,11 @@ import '../model/message.dart';
 abstract class InstantMessagingEvent {}
 
 class MessageReceivedEvent extends InstantMessagingEvent {
-  final List<Message> messages;
+  final Message message;
 
-  MessageReceivedEvent(this.messages);
+  MessageReceivedEvent(this.message);
 }
+
+class MessageSentEvent extends InstantMessagingEvent {}
 
 class MessageSendErrorEvent extends InstantMessagingEvent {}

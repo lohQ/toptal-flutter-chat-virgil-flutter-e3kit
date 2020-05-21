@@ -64,7 +64,7 @@ class ChatRepo {
       users[0] = otherUser;
       users[1] = currentUser;
       try {
-        return SelectedChatroom(chatroomId, otherUser.displayName);
+        return SelectedChatroom(chatroomId, otherUser.uid, otherUser.displayName);
       } catch (error) {
         print(error);
         return null;
@@ -89,18 +89,16 @@ class ChatRepo {
             data.documents, _chatUsersSubject.value));
   }
 
-  Stream<Chatroom> getMessagesForChatroom(String chatroomId) {
+  Stream<QuerySnapshot> getMessagesForChatroom(String chatroomId) {
     return _firestore
         .collection(FirestorePaths.CHATROOMS_COLLECTION)
         .document(chatroomId)
-        .snapshots()
-        .map((data) {
-          Chatroom chatroom = Deserializer.deserializeChatroomMessages(data, _chatUsersSubject.value);
-          // chatroom.messages.sort((message1, message2) => message1.timestamp.compareTo(message2.timestamp));
-          chatroom.messages.sort((message1, message2) => message2.timestamp.compareTo(message1.timestamp));
-          return chatroom;
-    });
+        .collection(FirestorePaths.MESSAGES_COLLECTION)
+        .orderBy("timestamp", descending: false)
+        .snapshots();
   }
+
+  
 
   Future<SelectedChatroom> startChatroomForUsers(List<User> users) async {
     DocumentReference userRef = _firestore
@@ -117,10 +115,9 @@ class ChatRepo {
       return room.data["participants"].contains(otherUserRef);
     }, orElse: () => null);
     if (roomSnapshot != null) {
-      return SelectedChatroom(roomSnapshot.documentID, users[0].displayName);
+      return SelectedChatroom(roomSnapshot.documentID, users[0].uid, users[0].displayName);
     } else {
       Map<String, dynamic> chatroomMap = Map<String, dynamic>();
-      chatroomMap["messages"] = List<String>(0);
       List<DocumentReference> participants = List<DocumentReference>(2);
       participants[0] = otherUserRef;
       participants[1] = userRef;
@@ -129,22 +126,20 @@ class ChatRepo {
           .collection(FirestorePaths.CHATROOMS_COLLECTION)
           .add(chatroomMap);
       DocumentSnapshot chatroomSnapshot = await reference.get();
-      return SelectedChatroom(chatroomSnapshot.documentID, users[0].displayName);
+      return SelectedChatroom(chatroomSnapshot.documentID, users[0].uid, users[0].displayName);
     }
   }
 
   Future<bool> sendMessageToChatroom(String chatroomId, User user, String message) async {
     try {
-      DocumentReference authorRef = _firestore.collection(FirestorePaths.USERS_COLLECTION).document(user.uid);
-      DocumentReference chatroomRef = _firestore.collection(FirestorePaths.CHATROOMS_COLLECTION).document(chatroomId);
+      CollectionReference chatroomRef = _firestore.collection(FirestorePaths.CHATROOMS_COLLECTION).document(chatroomId)
+        .collection(FirestorePaths.MESSAGES_COLLECTION);
       Map<String, dynamic> serializedMessage = {
-        "author" : authorRef,
+        "author" : user.uid,
         "timestamp" : DateTime.now(),
         "value" : message
       };
-      chatroomRef.updateData({
-        "messages" : FieldValue.arrayUnion([serializedMessage])
-      });
+      chatroomRef.add(serializedMessage);
       return true;
     } catch (e) {
       print(e.toString());

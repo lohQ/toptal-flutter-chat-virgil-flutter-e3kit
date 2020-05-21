@@ -32,7 +32,8 @@ dependencies:
   rxdart: ^0.24.0
   e3kit:
     git:
-      url: git://github.com/cardoso/virgil-e3kit-flutter.git
+      url: git://github.com/lohQ/virgil-flutter-e3kit-extended.git
+      ref: master
   cloud_functions: ^0.5.0
   
 dev_dependencies:

@@ -37,7 +37,7 @@ class LoginBloc extends Bloc<LoginEvent, LoginState> {
 
   void onLoginGoogle(LoginWidget view) async {
     add(LoginEventInProgress());
-    final googleSignInRepo = GoogleSignIn(signInOption: SignInOption.standard, scopes: ["profile", "email"]);
+    final googleSignInRepo = GoogleSignIn(scopes: ["profile", "email"]);
     final account = await googleSignInRepo.signIn().catchError((e){print(e); return null;});
     if (account != null) {
       LoginRepo.getInstance().signInWithGoogle(account);

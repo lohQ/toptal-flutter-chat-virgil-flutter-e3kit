@@ -2,14 +2,14 @@ import '../model/message.dart';
 
 class InstantMessagingState {
   final bool isLoading;
-  final List<Message> messages;
+  final Message message;
   final bool error;
 
-  InstantMessagingState._internal(this.isLoading, this.messages, {this.error = false});
+  InstantMessagingState._internal(this.isLoading, this.message, {this.error = false});
 
-  factory InstantMessagingState.initial() => InstantMessagingState._internal(true, List<Message>(0));
+  factory InstantMessagingState.initial() => InstantMessagingState._internal(true, null);
 
-  factory InstantMessagingState.messages(List<Message> messages) => InstantMessagingState._internal(false, messages);
+  factory InstantMessagingState.messages(Message message) => InstantMessagingState._internal(false, message);
 
-  factory InstantMessagingState.error(InstantMessagingState state) => InstantMessagingState._internal(state.isLoading, state.messages, error: true);
+  factory InstantMessagingState.error(InstantMessagingState state) => InstantMessagingState._internal(state.isLoading, state.message, error: true);
 }

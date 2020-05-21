@@ -55,7 +55,7 @@ class PushNotificationsHandler {
         .getChatroom(data["chatroom_id"], currentUser, otherUser)
         .then((chatroom) {
           appStateKey.currentState.pushAndRemoveUntil(
-              MaterialPageRoute(builder: (context) => InstantMessagingScreen(displayName: chatroom.displayName, chatroomId: chatroom.id)),
+              MaterialPageRoute(builder: (context) => InstantMessagingScreen(chatroom: chatroom, isNew: false)),
               (Route<dynamic> route) => route.isFirst);
           return true;
         });

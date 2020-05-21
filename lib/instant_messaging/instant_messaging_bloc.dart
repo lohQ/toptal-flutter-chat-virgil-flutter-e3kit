@@ -1,61 +1,83 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:bloc/bloc.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:toptal_chat/e2ee/src/device.dart';
 
 import 'instant_messaging_event.dart';
 import 'instant_messaging_state.dart';
 import '../model/user.dart';
 import '../model/message.dart';
-import '../model/chatroom.dart';
 import '../model/chat_repo.dart';
 import '../model/user_repo.dart';
 import '../model/storage_repo.dart';
 
 class InstantMessagingBloc extends Bloc<InstantMessagingEvent, InstantMessagingState> {
-  InstantMessagingBloc(this.chatroomId);
+  InstantMessagingBloc(this.chatroomId, this.oppUserId);
 
   final String chatroomId;
-  StreamSubscription<Chatroom> chatroomSubscription;
+  final String oppUserId;
+  StreamSubscription<QuerySnapshot> chatroomSubscription;
 
   void _retrieveMessagesForThisChatroom() async {
     final User user = await UserRepo.getInstance().getCurrentUser();
-    chatroomSubscription = ChatRepo.getInstance().getMessagesForChatroom(chatroomId).listen((chatroom) async {
-      if (chatroom != null) {
-        print("chatroomSubscription triggered");
-        Stream<Message> processedMessagesStream = Stream.fromIterable(chatroom.messages)
-            .asyncMap((message) async {
-              if (message.value.startsWith("_uri:")) {
-                final String uri = message.value.substring("_uri:".length);
+    chatroomSubscription = ChatRepo.getInstance().getMessagesForChatroom(chatroomId).listen(
+      (snapshot) {
+        snapshot.documents.forEach(
+          (m) async {
+            final String authorId = await m.data["author"];
+            if(authorId != user.uid){
+              final message = m.data;
+              String messageValue;
+              if (message["value"].startsWith("_uri:")) {
+                final String uri = message["value"].substring("_uri:".length);
                 final String downloadUri = await StorageRepo.getInstance().decodeUri(uri);
-                return Message(message.author, message.timestamp, "_uri:$downloadUri", message.author.uid == user.uid);
+                messageValue = "_uri:$downloadUri";
+              } else {
+                final decryptedText = await Device().ratchetDecrypt(oppUserId, message["value"]);
+                if(decryptedText != null){
+                  messageValue = decryptedText;
+                }else{
+                  messageValue = "failed to decrypt";
+                }
               }
-              return Message(message.author, message.timestamp, message.value, message.author.uid == user.uid);
-            });
-        final List<Message> processedMessages = await processedMessagesStream.toList();
-        add(MessageReceivedEvent(processedMessages));
+              await Firestore.instance.collection("chatrooms").document(chatroomId).collection("messages").document(m.documentID).delete();
+              final processedMessage = Message(authorId, message["timestamp"], messageValue, false);
+              add(MessageReceivedEvent(processedMessage));
+            }
+          });
       }
-    });
+    );
   }
   
-  void send(String text) async {
-    final User user = await UserRepo.getInstance().getCurrentUser();
-    final bool success = await ChatRepo.getInstance().sendMessageToChatroom(chatroomId, user, text);
-    if (!success) {
+  void send(String text, List<MessageToDisplay> curMessageList) async {
+    print("sending message: $text");
+    String cipher = await Device().ratchetEncrypt(oppUserId, text);
+    if(cipher != null){
+      final User user = await UserRepo.getInstance().getCurrentUser();
+      final bool success = await ChatRepo.getInstance().sendMessageToChatroom(chatroomId, user, cipher);
+      if (!success) {
+        add(MessageSendErrorEvent());
+      }else{
+        curMessageList.insert(0,MessageToDisplay(text, true));
+        add(MessageSentEvent());
+      }
+    }else{
       add(MessageSendErrorEvent());
     }
   }
 
-  void sendFile(File file) async {
+  void sendFile(File file, List<MessageToDisplay> curMessageList) async {
     final String storagePath = await StorageRepo.getInstance().uploadFile(file);
     if (storagePath != null) {
-      _sendFileUri(storagePath);
+      _sendFileUri(storagePath, curMessageList);
     } else {
       add(MessageSendErrorEvent());
     }
   }
 
-  void _sendFileUri(String uri) async {
-    send("_uri:$uri");
+  void _sendFileUri(String uri, List<MessageToDisplay> curMessageList) async {
+    send("_uri:$uri", curMessageList);
   }
 
   @override
@@ -67,9 +89,11 @@ class InstantMessagingBloc extends Bloc<InstantMessagingEvent, InstantMessagingS
   @override
   Stream<InstantMessagingState> mapEventToState(InstantMessagingEvent event) async* {
     if (event is MessageReceivedEvent) {
-      yield InstantMessagingState.messages(event.messages);
+      yield InstantMessagingState.messages(event.message);
     } else if (event is MessageSendErrorEvent) {
       yield InstantMessagingState.error(state);
+    } else if (event is MessageSentEvent) {
+      yield InstantMessagingState.messages(null);
     }
   }
 
@@ -81,3 +105,4 @@ class InstantMessagingBloc extends Bloc<InstantMessagingEvent, InstantMessagingS
     super.close();
   }
 }
+

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:toptal_chat/model/chatroom.dart';
 
 import 'login/login_view.dart';
 import 'main/main_view.dart';
@@ -57,18 +58,18 @@ class NavigationHelper {
 
   static void navigateToInstantMessaging(
       BuildContext context,
-      String displayName,
-      String chatroomId,
+      SelectedChatroom chatroom,
+      bool isNew,
       { bool addToBackStack: false }) {
     if (addToBackStack) {
       Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => InstantMessagingScreen(displayName: displayName, chatroomId: chatroomId))
+          MaterialPageRoute(builder: (context) => InstantMessagingScreen(chatroom: chatroom, isNew: isNew))
       );
     } else {
       Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => InstantMessagingScreen(displayName: displayName, chatroomId: chatroomId))
+          MaterialPageRoute(builder: (context) => InstantMessagingScreen(chatroom: chatroom, isNew: isNew))
       );
     }
   }

@@ -1,4 +1,4 @@
-import 'e3kit.dart';
+import 'package:e3kit/e3kit.dart';
 import 'package:flutter/services.dart';
 
 import 'package:cloud_functions/cloud_functions.dart';
@@ -231,4 +231,97 @@ class Device {
       _log('Failed unregistering: $err');
     }
   }
+
+  createRatchetChannel(String identity) async {
+    final eThree = getEThree();
+    try{
+      await eThree.createRatchetChannel(identity);
+      print("Ratchet channel created");
+    } on PlatformException catch (err) {
+      print("Ratchet channel creation failed: $err");
+    }
+  }
+
+  joinRatchetChannel(String identity) async {
+    final eThree = getEThree();
+    try{
+      await eThree.joinRatchetChannel(identity);
+      print("Ratchet channel joined");
+    } on PlatformException catch (err) {
+      print("Ratchet channel join failed: $err");
+    }
+  }
+
+  Future<bool> hasRatchetChannel(String identity) async {
+    final eThree = getEThree();
+    try{
+      final channelExists = await eThree.hasRatchetChannel(identity);
+      if(channelExists){
+        print("Ratchet channel exists in local storage");
+      }else{
+        print("Ratchet channel does not exist in local storage");
+      }
+      return channelExists;
+    } on PlatformException catch (err) {
+      print("Ratchet channel does not exist in local storage: $err");
+      return false;
+    }
+  }
+
+  Future<bool> getRatchetChannel(String identity) async {
+    final eThree = getEThree();
+    try{
+      return await eThree.getRatchetChannel(identity);
+    } on PlatformException catch (err) {
+      print("Failed to get ratchet channel: $err");
+      return false;
+    }
+  }
+
+  Future<String> ratchetEncrypt(String identity, String message) async {
+    final eThree = getEThree();
+    try{
+      final String encrypted = await eThree.ratchetEncrypt(identity, message);
+      print("double ratchet encryption succeeded");
+      return encrypted;
+    } on PlatformException catch (err) {
+      print("double ratchet encryption failed: $err");
+      return null;
+    }
+  }
+
+  Future<String> ratchetDecrypt(String identity, String message) async {
+    final eThree = getEThree();
+    try{
+      final String decrypted = await eThree.ratchetDecrypt(identity, message);
+      print("double ratchet decryption succeeded");
+      return decrypted;
+    } on PlatformException catch (err) {
+      print("double ratchet decryption failed: $err");
+      return null;
+    }
+  }
+
+  // Future<List<String>> ratchetDecryptMultiple(String identity, List<String> messages) async {
+  //   final eThree = getEThree();
+  //   try{
+  //     final List<String> decrypted = await eThree.ratchetDecryptMultiple(identity, messages);
+  //     print("double ratchet multiple decryption succeeded");
+  //     return decrypted;
+  //   } on PlatformException catch (err) {
+  //     print("double ratchet decryption failed: $err");
+  //     return null;
+  //   }
+  // }
+  Future<void> deleteRatchetChannel(String identity) async {
+    final eThree = getEThree();
+    try{
+      eThree.deleteRatchetChannel(identity);
+      print("delete ratchet channel success");
+    } on PlatformException catch (err) {
+      print("delete ratchet channel failed: $err");
+      return null;
+    }
+  }
+
 }

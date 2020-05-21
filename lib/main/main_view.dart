@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:toptal_chat/e2ee/e2ee_bloc.dart';
-import 'package:toptal_chat/e2ee/e2ee_state.dart';
-import 'package:toptal_chat/model/chat_repo.dart';
-import 'package:toptal_chat/model/user_repo.dart';
+import 'package:toptal_chat/e2ee/e2ee_wrapper.dart';
 
 import 'main_bloc.dart';
 import 'main_state.dart';
@@ -34,7 +32,12 @@ class _MainState extends State<MainScreen> {
   Widget build(BuildContext context) {
     return BlocProvider<E2eeBloc>(
       create: (context)=>_e2eeBloc,
-      child: E2eeWidget(context)
+      child: E2eeWrapper(
+        BlocProvider<MainBloc>(
+          create: (context) => MainBloc(),
+          child: MainWidget(parentContext: context)
+        ),
+        "error initializing eThree")
     );    
   }
 
@@ -46,35 +49,6 @@ class _MainState extends State<MainScreen> {
 
 }
 
-class E2eeWidget extends StatelessWidget{
-  final BuildContext parentContext;
-  E2eeWidget(this.parentContext);
-  @override
-  Widget build(BuildContext context){
-    return BlocBuilder(
-      bloc: BlocProvider.of<E2eeBloc>(context),
-      builder: (context, E2eeState state){
-        if(state.isLoading){
-          return Center(
-            child: CircularProgressIndicator(
-              strokeWidth: 4.0,
-            )
-          );
-        }else if(state.error){
-          return Center(
-            child: Text("error initializing eThree")
-          );
-        }else{
-          return BlocProvider<MainBloc>(
-            create: (context) => MainBloc(),
-            child: MainWidget(parentContext: parentContext, contextWithE2ee: context,)
-          );
-        }
-      },
-    );
-  }
-}
-
 class MainWidget extends StatelessWidget {
   final BuildContext contextWithE2ee;
   const MainWidget(
@@ -83,7 +57,6 @@ class MainWidget extends StatelessWidget {
     @required this.parentContext, 
     this.contextWithE2ee}) : super(key: key);
 
-  // final MainScreen widget;
   final BuildContext parentContext;
 
   @override
@@ -167,10 +140,7 @@ class MainWidget extends StatelessWidget {
   }
 
   void navigateToChatroom(SelectedChatroom chatroom) async {
-    final curUser = await UserRepo.getInstance().getCurrentUser();
-    final users = await ChatRepo.getInstance().getUsersFromChatroom(chatroom.id);
-    users.remove(curUser.uid);
-    await BlocProvider.of<E2eeBloc>(contextWithE2ee).onStartChat([users.first]); // users only has one element
-    NavigationHelper.navigateToInstantMessaging(parentContext, chatroom.displayName, chatroom.id, addToBackStack: true);
+    NavigationHelper.navigateToInstantMessaging(
+      parentContext, chatroom, false, addToBackStack: true);
   }
 }

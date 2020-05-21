@@ -1,22 +1,25 @@
 import 'dart:async';
 
 import 'package:bloc/bloc.dart';
+import 'package:flutter/services.dart';
 import 'package:toptal_chat/e2ee/e2ee_event.dart';
 import 'package:toptal_chat/e2ee/e2ee_state.dart';
 import 'package:toptal_chat/e2ee/src/device.dart';
-import 'package:toptal_chat/model/message.dart';
 import 'package:toptal_chat/model/user_repo.dart';
 
 class E2eeBloc extends Bloc<E2eeEvent, E2eeState>{
   
   Device device = Device();
 
-  // called after firebase auth success / sharedPreference has user?
   void onInit() async {
     add(E2eeInProgressEvent());
     final uid = (await UserRepo.getInstance().getCurrentUser()).uid;
     device.identity = uid;
-    await device.initialize();
+    try{
+      await device.initialize();
+    }catch(e){
+      add(E2eeErrorEvent(e));
+    }
     final isSignedIn = await device.isSignedIn();
     if(isSignedIn){
       add(E2eeOperationCompleted());
@@ -51,16 +54,38 @@ class E2eeBloc extends Bloc<E2eeEvent, E2eeState>{
     add(E2eeOperationCompleted());
   }
 
-  Future<void> onStartChat(List<String> identities) async {
+  // detect whether chat is correctly created -- if not then re-create?
+  Future<void> onCreateChat(String identity) async {
     add(E2eeInProgressEvent());
     try{
-      device.publicKeyMap = await device.findUsers(identities);
+      device.publicKeyMap = await device.findUsers([identity]);
       print("publicKeyMap now has ${device.publicKeyMap.length} items");
+      await device.createRatchetChannel(identity);
       add(E2eeOperationCompleted());
     }catch(e){
       add(E2eeErrorEvent(e));
     }
   }
+
+  Future<void> onStartChat(String identity) async {
+    add(E2eeInProgressEvent());
+    try{
+      final channelExists = await device.getRatchetChannel(identity);
+      if(channelExists){
+        add(E2eeOperationCompleted());
+      }else{
+        try{
+          await device.joinRatchetChannel(identity);
+          add(E2eeOperationCompleted());
+        }catch(e){
+          add(E2eeErrorEvent(e));
+        }
+      }
+    }on PlatformException catch (e){
+      add(E2eeErrorEvent(e));
+    }
+  }
+
   @override
   E2eeState get initialState {
     return E2eeState.initial();
@@ -70,10 +95,6 @@ class E2eeBloc extends Bloc<E2eeEvent, E2eeState>{
   Stream<E2eeState> mapEventToState(E2eeEvent event) async* {
     if(event is E2eeInProgressEvent){
       yield E2eeState.loading(true);
-    // }else if(event is E2eeEncryptionEvent){
-    //   yield E2eeState.encrypt(event.encryptedText);
-    // }else if(event is E2eeDecryptionEvent){
-    //   yield E2eeState.decrypt(event.decryptedText, event.timestamp);
     }else if(event is E2eeErrorEvent){
       yield E2eeState.error();
     }else if(event is E2eeOperationCompleted){

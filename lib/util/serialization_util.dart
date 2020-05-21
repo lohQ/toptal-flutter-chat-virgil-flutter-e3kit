@@ -29,25 +29,25 @@ class Deserializer {
     return Chatroom(deserializeUsersFromReference(participantReferences, users).toList(), List<Message>());
   }
 
-  static Chatroom deserializeChatroomMessages(DocumentSnapshot document, List<User> users) {
-    List<DocumentReference> participantReferences = List<DocumentReference>(2);
-    participantReferences[0] = document['participants'][0];
-    participantReferences[1] = document['participants'][1];
-    Chatroom chatroom = Chatroom(deserializeUsersFromReference(participantReferences, users).toList(), List<Message>());
-    chatroom.messages.addAll(deserializeMessages(document['messages'], users));
-    return chatroom;
-  }
+  // static Chatroom deserializeChatroomMessages(DocumentSnapshot document, List<User> users) {
+  //   List<DocumentReference> participantReferences = List<DocumentReference>(2);
+  //   participantReferences[0] = document['participants'][0];
+  //   participantReferences[1] = document['participants'][1];
+  //   Chatroom chatroom = Chatroom(deserializeUsersFromReference(participantReferences, users).toList(), List<Message>());
+  //   chatroom.messages.addAll(deserializeMessages(document['messages'], users));
+  //   return chatroom;
+  // }
 
   static List<Message> deserializeMessages(List<dynamic> messages, List<User> users) {
     return messages.map((data) {
-      return deserializeMessage(Map<String, dynamic>.from(data), users);
+      return deserializeMessage(Map<String, dynamic>.from(data));
     }).toList();
   }
 
-  static Message deserializeMessage(Map<String, dynamic> document, List<User> users) {
-    DocumentReference authorReference = document['author'];
-    User author = users.firstWhere((user) => user.uid == authorReference.documentID);
-    return Message(author, document['timestamp'], document['value']);
+  static Message deserializeMessage(Map<String, dynamic> document) {
+    // DocumentReference authorReference = document['author'];
+    // User author = users.firstWhere((user) => user.uid == authorReference.documentID);
+    return Message(document["author"], document['timestamp'], document['value']);
   }
 
 }

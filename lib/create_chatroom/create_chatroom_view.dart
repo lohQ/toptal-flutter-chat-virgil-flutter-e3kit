@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:toptal_chat/e2ee/e2ee_bloc.dart';
-import 'package:toptal_chat/e2ee/e2ee_state.dart';
 
 import '../util/constants.dart';
 import '../navigation_helper.dart';
@@ -24,42 +22,13 @@ class _CreateChatroomState extends State<CreateChatroomScreen> {
   Widget build(BuildContext context) {
     return BlocProvider<CreateChatroomBloc>(
       create: (context) => CreateChatroomBloc(),
-      child: BlocProvider(
-        create: (context) => E2eeBloc(),
-        child: E2eeChatroomWidget(parentContext:context)
-      ));
-  }
-
-}
-
-class E2eeChatroomWidget extends StatelessWidget{
-  final BuildContext parentContext;
-  E2eeChatroomWidget({this.parentContext});
-  @override
-  Widget build(BuildContext context){
-    return BlocBuilder(
-      bloc: BlocProvider.of<E2eeBloc>(context),
-      builder: (context, E2eeState state){
-        if(state.isLoading){
-          return Center(child: CircularProgressIndicator(
-            strokeWidth: 4.0,
-          ));
-        }else if(state.error){
-          return Center(child: Text("error finding virgil card"));
-        }else{
-          return CreateChatroomWidget(parentContext: parentContext);
-        }
-      }
+      child: CreateChatroomWidget(parentContext:context)
     );
   }
+
 }
 
 class CreateChatroomWidget extends StatelessWidget {
-  // const CreateChatroomWidget({Key key, @required this.widget, @required this.widgetState}) : super(key: key);
-
-  // final CreateChatroomScreen widget;
-  // final _CreateChatroomState widgetState;
-
   final parentContext;
   const CreateChatroomWidget({Key key, @required this.parentContext}) : super(key: key); 
 
@@ -84,7 +53,6 @@ class CreateChatroomWidget extends StatelessWidget {
                   return InkWell(
                       child: _buildItem(state.users[index]),
                       onTap: () async {
-                        BlocProvider.of<E2eeBloc>(context).onStartChat([state.users[index].uid]);
                         BlocProvider.of<CreateChatroomBloc>(context).startChat(state.users[index], this);
                       }
                   );
@@ -100,6 +68,7 @@ class CreateChatroomWidget extends StatelessWidget {
   }
 
   void navigateToSelectedChatroom(SelectedChatroom chatroom) {
-    NavigationHelper.navigateToInstantMessaging(parentContext, chatroom.displayName, chatroom.id);
+    NavigationHelper.navigateToInstantMessaging(
+      parentContext, chatroom, true);
   }
 }

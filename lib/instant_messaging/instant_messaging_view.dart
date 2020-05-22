@@ -9,6 +9,7 @@ import 'package:toptal_chat/e2ee/e2ee_wrapper.dart';
 import 'package:toptal_chat/e2ee/src/device.dart';
 import 'package:toptal_chat/model/chatroom.dart';
 import 'package:toptal_chat/model/message.dart';
+import 'package:toptal_chat/model/message_repo.dart';
 
 import '../util/constants.dart';
 import 'instant_messaging_bloc.dart';
@@ -33,6 +34,8 @@ class _InstantMessagingState extends State<InstantMessagingScreen> {
   @override
   void initState(){
     super.initState();
+    // dangerous without await
+    MessageRepo().instance.createTable(widget.chatroom.id);
     if(widget.isNew){
       _e2eeBloc.onCreateChat(widget.chatroom.oppId);
     }else{
@@ -62,9 +65,16 @@ class _InstantMessagingState extends State<InstantMessagingScreen> {
 
 class InstantMessagingWidget extends StatelessWidget {
   final String chatroomId; final String displayName; final String oppId; 
-  InstantMessagingWidget(this.chatroomId, this.displayName, this.oppId, {Key key}) : super(key: key);
   final TextEditingController _textEditingController = TextEditingController();
   final messageToDisplay = List<MessageToDisplay>();
+
+  InstantMessagingWidget(this.chatroomId, this.displayName, this.oppId, {Key key})
+   : super(key: key){
+    MessageRepo().instance.readMessages(chatroomId)
+    .then((messageList){
+      messageToDisplay.addAll(messageList);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -77,11 +87,13 @@ class InstantMessagingWidget extends StatelessWidget {
               onPressed: () async {
                 try{
                   await Device().deleteRatchetChannel(oppId);
+                  // message repo would be initialized by now
+                  await MessageRepo().instance.deleteTable(chatroomId);
                   await Firestore.instance.collection(FirestorePaths.CHATROOMS_COLLECTION)
                     .document(chatroomId).delete()
                     .whenComplete((){Navigator.pop(context);});
                 }catch(e){
-                  print("error deleting ratchet channel/deleting chatroom: $e");
+                  print("error deleting ratchet channel: $e");
                 }},
             )]),
         body: Column(
@@ -145,7 +157,7 @@ class InstantMessagingWidget extends StatelessWidget {
           );
         } else {
           if(state.message != null){
-            messageToDisplay.insert(0,MessageToDisplay(state.message.value, false));
+            messageToDisplay.insert(0,state.message);
           }
           return Container(
               child: ListView.builder(

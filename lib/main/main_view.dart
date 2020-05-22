@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:toptal_chat/e2ee/e2ee_bloc.dart';
 import 'package:toptal_chat/e2ee/e2ee_wrapper.dart';
+import 'package:toptal_chat/model/message_repo.dart';
 
 import 'main_bloc.dart';
 import 'main_state.dart';
@@ -26,6 +27,8 @@ class _MainState extends State<MainScreen> {
     super.initState();
     _e2eeBloc = E2eeBloc();
     _e2eeBloc.onInit();
+    // dangerous without await 
+    MessageRepo.init();
   }
 
   @override
@@ -44,6 +47,8 @@ class _MainState extends State<MainScreen> {
   @override
   void dispose(){
     _e2eeBloc.close();
+    // dangerous without await 
+    MessageRepo.dismiss();
     super.dispose();
   }
 

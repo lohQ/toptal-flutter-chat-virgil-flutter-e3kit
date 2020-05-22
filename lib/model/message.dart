@@ -13,4 +13,7 @@ class MessageToDisplay {
   final String value;
   final bool outgoing;
   MessageToDisplay(this.value, this.outgoing);
+  MessageToDisplay.fromMap(Map<String,dynamic> map)
+    : value = map["value"],
+      outgoing = (map["outgoing"]==1 ? true : false);
 }

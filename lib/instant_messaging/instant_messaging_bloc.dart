@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:bloc/bloc.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:toptal_chat/e2ee/src/device.dart';
+import 'package:toptal_chat/model/message_repo.dart';
 
 import 'instant_messaging_event.dart';
 import 'instant_messaging_state.dart';
@@ -17,6 +18,7 @@ class InstantMessagingBloc extends Bloc<InstantMessagingEvent, InstantMessagingS
 
   final String chatroomId;
   final String oppUserId;
+  final MessageRepo messageRepo = MessageRepo().instance;
   StreamSubscription<QuerySnapshot> chatroomSubscription;
 
   void _retrieveMessagesForThisChatroom() async {
@@ -42,7 +44,9 @@ class InstantMessagingBloc extends Bloc<InstantMessagingEvent, InstantMessagingS
                 }
               }
               await Firestore.instance.collection("chatrooms").document(chatroomId).collection("messages").document(m.documentID).delete();
-              final processedMessage = Message(authorId, message["timestamp"], messageValue, false);
+              // final processedMessage = Message(authorId, message["timestamp"], messageValue, false);
+              final processedMessage = MessageToDisplay(messageValue, false);
+              await messageRepo.saveMessage(processedMessage, chatroomId);
               add(MessageReceivedEvent(processedMessage));
             }
           });
@@ -59,7 +63,9 @@ class InstantMessagingBloc extends Bloc<InstantMessagingEvent, InstantMessagingS
       if (!success) {
         add(MessageSendErrorEvent());
       }else{
-        curMessageList.insert(0,MessageToDisplay(text, true));
+        final m = MessageToDisplay(text, true);
+        curMessageList.insert(0,m);
+        await messageRepo.saveMessage(m, chatroomId);
         add(MessageSentEvent());
       }
     }else{

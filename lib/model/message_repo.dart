@@ -94,10 +94,9 @@ class MessageRepo {
     }
   }
 
-  saveMessage(MessageToDisplay m, String chatroomId) async {
+  saveMessage(int id, MessageToDisplay m, String chatroomId) async {
     final saveTarget = getTableNameForChatroom(chatroomId);
     try{
-      final id = await _getNextMsgId(saveTarget);
       final mToSave = MessageToSave(id, m.value, m.outgoing);
       await database.insert(saveTarget, mToSave.toMap());
       print("messageId is $id, message '${m.value}' saved");
@@ -106,14 +105,10 @@ class MessageRepo {
     }
   }
 
-  Future<int> _getNextMsgId(String table) async {
-    try{
-      return Sqflite
-      .firstIntValue(await database.rawQuery('SELECT COUNT(*) FROM $table'));
-    }catch(e){
-      print("error counting rows: $e");
-      return null;
-    }
+  Future<int> getMessageId(String chatroomId) async {
+    String table = getTableNameForChatroom(chatroomId);
+    return Sqflite.firstIntValue(
+      await database.rawQuery('SELECT COUNT(*) FROM $table'));
   }
 
 }

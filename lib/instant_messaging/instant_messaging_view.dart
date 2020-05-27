@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:toptal_chat/e2ee/e2ee_bloc.dart';
+import 'package:toptal_chat/e2ee/e2ee_state.dart';
 import 'package:toptal_chat/e2ee/e2ee_wrapper.dart';
 import 'package:toptal_chat/model/chatroom.dart';
 import 'package:toptal_chat/model/message.dart';
@@ -59,30 +60,50 @@ class _InstantMessagingState extends State<InstantMessagingScreen> {
     return BlocProvider<E2eeBloc>(
       create: (context) => _e2eeBloc,
       child: E2eeWrapper(
-        BlocProvider<InstantMessagingBloc>(
+        child: BlocProvider<InstantMessagingBloc>(
           create: (context) => InstantMessagingBloc(widget.chatroom.id, widget.chatroom.oppId),
           child: InstantMessagingWidget(widget.chatroom.id, widget.chatroom.displayName, widget.chatroom.oppId)),
-        (PlatformException error){ mapErrorToAction(error); }
+        errorCallback: (E2eeState error){ mapErrorToAction(error); },
+        errorWidget: (E2eeState error){ return mapErrorToWidget(error); },
         ),
     );
   }
 
-  void mapErrorToAction(PlatformException error) async {
-    if(error.message == "channel already exists"){
-    }else if(error.message == "long term key does not exist"){
-    }else if(error.message == "no invitation"){
-    }else {
+  void mapErrorToAction(E2eeState state) async {
+    if(state.error){
+      final error = state.errorDetails;
+      if(error.message == "70204: Channel with provided user and name already exists."){
+        // try again
+        await _e2eeBloc.device.deleteRatchetChannel(widget.chatroom.oppId);
+        _e2eeBloc.onCreateChat(widget.chatroom.oppId);
+
+      }else if(error.message.contains(RegExp("Long-term key .* not found"))
+        || error.message == "70602: Card for one or more of provided identities was not found."){
+        // fails cleanly
+        await _e2eeBloc.device.deleteRatchetChannel(widget.chatroom.oppId);
+        await MessageRepo().instance.deleteTable(widget.chatroom.id);
+        await Firestore.instance.collection(FirestorePaths.CHATROOMS_COLLECTION)
+          .document(widget.chatroom.id).delete();
+        print("chatroom deletion completed");
+      // }else if(error.message == "no invitation"){
+      // }else {
+      }
     }
-    await _e2eeBloc.device.deleteRatchetChannel(widget.chatroom.oppId);
-    try{
-      await _e2eeBloc.device.deleteRatchetChannel(widget.chatroom.oppId);
-    }catch(e){
-      print(e);
+  }
+
+  Widget mapErrorToWidget(E2eeState e){
+    final createOrGet = widget.isNew ? "creating" : "getting";
+    String additionalInfo = "";
+    if(e.errorDetails.message == "70204: Channel with provided user and name already exists."){
+      additionalInfo = "Deleting previous channel and re-creating...";
+    }else if(e.errorDetails.message.contains(RegExp("Long-term key .* not found"))){
+      additionalInfo = "Possible reason: unclean uninstallation. \nSuggested action: re-register to virgil cloud. ";
     }
-    await MessageRepo().instance.deleteTable(widget.chatroom.id);
-    await Firestore.instance.collection(FirestorePaths.CHATROOMS_COLLECTION)
-      .document(widget.chatroom.id).delete();
-    print("chatroom deletion completed");
+    return Center(
+      child: Text(
+        "Error $createOrGet ratchet channel: ${e.errorDetails}\n$additionalInfo",
+        style: TextStyle(fontSize: 16))
+    );
   }
 
 }

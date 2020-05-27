@@ -1,15 +1,23 @@
 import 'dart:async';
 
 import 'package:bloc/bloc.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/services.dart';
 import 'package:toptal_chat/e2ee/e2ee_event.dart';
 import 'package:toptal_chat/e2ee/e2ee_state.dart';
 import 'package:toptal_chat/e2ee/src/device.dart';
+import 'package:toptal_chat/model/message_repo.dart';
 import 'package:toptal_chat/model/user_repo.dart';
 
 class E2eeBloc extends Bloc<E2eeEvent, E2eeState>{
   
   Device device = Device();
+
+  Future<void> addTimedError(Exception e) async {
+    add(E2eeErrorEvent(e));
+    Future.delayed(Duration(seconds: 3))
+    .whenComplete((){add(E2eeOperationCompleted());});
+  }
 
   void onInit() async {
     add(E2eeInProgressEvent());
@@ -30,20 +38,21 @@ class E2eeBloc extends Bloc<E2eeEvent, E2eeState>{
         try{
           await device.restorePrivateKey("password");
           print("signed in");
+          add(E2eeOperationCompleted());
         }catch(e){
-          // probably need to rotatePrivateKey
-          add(E2eeErrorEvent(e));
+          print("error restoring private key: $e");
+          await addTimedError(e);
         }
       }else{
         try{
           await device.register();
           await device.backupPrivateKey("password");
           print("registered");
+          add(E2eeOperationCompleted());
         }catch(e){
           add(E2eeErrorEvent(e));
         }
       }
-      add(E2eeOperationCompleted());
     }
   }
 
@@ -56,15 +65,21 @@ class E2eeBloc extends Bloc<E2eeEvent, E2eeState>{
     // add(E2eeOperationCompleted());
   }
 
-  onUninstall() async {
+  onUnregister(List<String> chatroomIds) async {
     add(E2eeInProgressEvent());
     try{
       await device.unregister();
+      // TODO: delete subcollection
+      chatroomIds.forEach((chatroomId) async {
+        await Firestore.instance.collection("chatrooms").document(chatroomId).delete();
+        await MessageRepo().instance.deleteTable(chatroomId);
+      });
+      // await device.register();
       // trigger database to clear all records?
       // trigger firestore to delete all chatrooms? 
     } on PlatformException catch (e) {
-      // not registered
       print(e.message);
+      add(E2eeErrorEvent(e));
     }
     add(E2eeOperationCompleted());
   }

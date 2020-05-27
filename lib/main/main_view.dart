@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:toptal_chat/e2ee/e2ee_bloc.dart';
+import 'package:toptal_chat/e2ee/e2ee_state.dart';
 import 'package:toptal_chat/e2ee/e2ee_wrapper.dart';
 import 'package:toptal_chat/model/message_repo.dart';
 
@@ -36,11 +37,25 @@ class _MainState extends State<MainScreen> {
     return BlocProvider<E2eeBloc>(
       create: (context)=>_e2eeBloc,
       child: E2eeWrapper(
-        BlocProvider<MainBloc>(
+        child: BlocProvider<MainBloc>(
           create: (context) => MainBloc(),
           child: MainWidget(parentContext: context)
         ),
-        (){})
+        errorCallback: null,
+        errorWidget: (E2eeState error){return mapWidgetToError(error);},
+      )
+    );
+  }
+
+  // void mapActionToError(E2eeState e){
+  //   // if there is error here then all subsequent operations will have problems
+  // }
+
+  Widget mapWidgetToError(E2eeState e){
+    return Center(
+      child: Text(
+        "Error initializing eThree: ${e.errorDetails} \n(Suggestion: unregister from virgil cloud and re-register again\nWarning: You will not able to access your previous chatrooms after this operation)", 
+        style: TextStyle(fontSize: 16))
     );
   }
 
@@ -55,14 +70,13 @@ class _MainState extends State<MainScreen> {
 }
 
 class MainWidget extends StatelessWidget {
-  final BuildContext contextWithE2ee;
-  const MainWidget(
+  MainWidget(
     {Key key, 
     // @required this.widget, 
-    @required this.parentContext, 
-    this.contextWithE2ee}) : super(key: key);
+    @required this.parentContext}) : super(key: key);
 
   final BuildContext parentContext;
+  List<String> chatroomIds = List<String>();
 
   @override
   Widget build(BuildContext context) {
@@ -104,6 +118,7 @@ class MainWidget extends StatelessWidget {
                   ),
                 );
               } else {
+                chatroomIds = List.generate(state.chatrooms.length, (i)=>state.chatrooms[i].id);
                 content = ListView.builder(
                   padding: EdgeInsets.all(UIConstants.SMALLER_PADDING),
                   itemBuilder: (context, index) {
@@ -148,9 +163,27 @@ class MainWidget extends StatelessWidget {
               return _wrapContentWithFab(context, content);
             })),
       bottomNavigationBar: RaisedButton(
-        child: Text("Click here before uninstalling"),
-        onPressed: (){
-          BlocProvider.of<E2eeBloc>(context).onUninstall();
+        child: Text("Click to Unregister on virgil cloud"),
+        onPressed: () async {
+          bool confirmReregister = false;
+          await showDialog(context: context, child: AlertDialog(
+            title: Text("Unregister on virgil cloud"),
+            content: Text("Unregistering means giving up previous allocated identity on virgil cloud, and you would not be able to access previous chatrooms afterwards. "),
+            actions: <Widget>[
+              FlatButton(child: Text("Cancel"),
+                onPressed: (){
+                  confirmReregister = false;
+                  Navigator.pop(context);}),
+              FlatButton(child: Text("Confirm Unregister"),
+                onPressed: (){
+                  confirmReregister = true;
+                  Navigator.pop(context);}),
+            ],
+          )).whenComplete((){
+            if(confirmReregister){
+              BlocProvider.of<E2eeBloc>(context).onUnregister(chatroomIds);
+            }
+          });
         },
       ),
     );

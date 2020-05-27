@@ -23,7 +23,8 @@ class Device {
     Future tokenCallback() async {
       final HttpsCallable callable = CloudFunctions.instance
         .getHttpsCallable(functionName: 'getVirgilJwt');
-      final data = (await callable.call()).data;
+      final data = (await callable.
+      call()).data;
       print("retrieved Json Web Token from server");
       return data["token"];
     }
@@ -156,19 +157,19 @@ class Device {
   restorePrivateKey(String password) async {
     final eThree = getEThree();
 
-    try {
+    // try {
       //# start of snippet: e3kit_restore_private_key
       await eThree.restorePrivateKey(password);
       //# end of snippet: e3kit_restore_private_key
       _log('Restored private key');
-    } on PlatformException catch(err) {
-      _log('Failed restoring private key: $err');
-      if (err.code == 'keychain_error') {
-        await eThree.cleanUp();
-        _log('Cleaned up. Trying again...');
-        await restorePrivateKey(password);
-      }
-    }
+    // } on PlatformException catch(err) {
+    //   _log('Failed restoring private key: $err');
+    //   if (err.code == 'keychain_error') {
+    //     await eThree.cleanUp();
+    //     _log('Cleaned up. Trying again...');
+    //     await restorePrivateKey(password);
+    //   }
+    // }
   }
 
   resetPrivateKeyBackup() async {

@@ -63,11 +63,6 @@ class MainBloc extends Bloc<MainEvent, MainState> {
 
   void deleteChatroom(String chatroomId, String oppId, BuildContext context) async {
     await Device().deleteRatchetChannel(oppId);
-    try{
-      await Device().deleteRatchetChannel(oppId);
-    }catch(e){
-      print(e);
-    }
     await MessageRepo().instance.deleteTable(chatroomId);
     await Firestore.instance.collection(FirestorePaths.CHATROOMS_COLLECTION)
       .document(chatroomId).delete();

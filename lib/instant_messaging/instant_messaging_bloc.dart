@@ -39,6 +39,7 @@ class InstantMessagingBloc extends Bloc<InstantMessagingEvent, InstantMessagingS
                 final String downloadUri = await StorageRepo.getInstance().decodeUri(uri);
                 messageValue = "_uri:$downloadUri";
               } else {
+                // decrypt text messages only
                 final decryptedText = await Device().ratchetDecrypt(oppUserId, message["value"]);
                 if(decryptedText != null){
                   messageValue = decryptedText;
@@ -57,28 +58,42 @@ class InstantMessagingBloc extends Bloc<InstantMessagingEvent, InstantMessagingS
     );
   }
   
+  void _messageSent(String text, List<MessageToDisplay> curMessageList) async {
+    final m = MessageToDisplay(text, true);
+    curMessageList.insert(0,m);
+    await messageRepo.saveMessage(m, chatroomId);
+    add(MessageSentEvent());
+  }
+
   void send(String text, List<MessageToDisplay> curMessageList) async {
     print("sending message: $text");
-    String cipher = await Device().ratchetEncrypt(oppUserId, text);
-    if(cipher != null){
-      final User user = await UserRepo.getInstance().getCurrentUser();
-      try{
-        final bool success = await ChatRepo.getInstance().sendMessageToChatroom(chatroomId, user, cipher);
-        if (!success) {
-          add(MessageSendErrorEvent());
-        }else{
-          final m = MessageToDisplay(text, true);
-          curMessageList.insert(0,m);
-          await messageRepo.saveMessage(m, chatroomId);
-          add(MessageSentEvent());
-        }
-      }catch(e){
-        if(e.message == "chatroom does not exist"){
-          add(MessageSendErrorEvent());
-        }
+    final User user = await UserRepo.getInstance().getCurrentUser();
+    if(text.startsWith("_uri")){
+      final bool success = await ChatRepo.getInstance().sendMessageToChatroom(chatroomId, user, text);
+      if (!success) {
+        add(MessageSendErrorEvent());
+      }else{
+        _messageSent(text, curMessageList);
       }
+    // encrypt text messages only
     }else{
-      add(MessageSendErrorEvent());
+      String cipher = await Device().ratchetEncrypt(oppUserId, text);
+      if(cipher != null){
+        try{
+          final bool success = await ChatRepo.getInstance().sendMessageToChatroom(chatroomId, user, cipher);
+          if (!success) {
+            add(MessageSendErrorEvent());
+          }else{
+            _messageSent(text, curMessageList);
+          }
+        }catch(e){
+          if(e.message == "chatroom does not exist"){
+            add(MessageSendErrorEvent());
+          }
+        }
+      }else{
+        add(MessageSendErrorEvent());
+      }
     }
   }
 

@@ -282,7 +282,7 @@ class Device {
       return decrypted;
     } on PlatformException catch (err) {
       print("double ratchet decryption failed: $err");
-      return null;
+      throw err;
     }
   }
 

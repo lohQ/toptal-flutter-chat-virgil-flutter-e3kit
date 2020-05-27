@@ -38,12 +38,21 @@ class MainBloc extends Bloc<MainEvent, MainState> {
     add(ClearChatroomsEvent());
     final user = await UserRepo.getInstance().getCurrentUser();
     if (user != null) {
-      chatroomsSubscription = ChatRepo.getInstance().getChatroomsForUser(user).listen((chatrooms) {
+      chatroomsSubscription = ChatRepo.getInstance().getChatroomsForUser(user).listen((chatrooms) async {
         chatrooms.forEach((room) {
           if (room.participants.first.uid == user.uid) {
             Util.swapElementsInList(room.participants, 0, 1);
           }
         });
+        // there is chatrooms deleted, by self or by opp
+        if(chatrooms.length < state.chatrooms.length){
+          final deletedChatrooms = state.chatrooms.where((r)=>!chatrooms.contains(r));
+          for(final room in deletedChatrooms){
+            await MessageRepo().instance.deleteTable(room.id);
+            final oppId = room.participants.firstWhere((p)=>(p.uid!=user.uid)).uid;
+            await Device().deleteRatchetChannel(oppId);
+          }
+        }
         add(ChatroomsUpdatedEvent(chatrooms));
       });
     } else {
@@ -62,8 +71,8 @@ class MainBloc extends Bloc<MainEvent, MainState> {
   }
 
   void deleteChatroom(String chatroomId, String oppId, BuildContext context) async {
-    await Device().deleteRatchetChannel(oppId);
-    await MessageRepo().instance.deleteTable(chatroomId);
+    // await Device().deleteRatchetChannel(oppId);
+    // await MessageRepo().instance.deleteTable(chatroomId);
     await Firestore.instance.collection(FirestorePaths.CHATROOMS_COLLECTION)
       .document(chatroomId).delete();
     print("chatroom deletion completed");

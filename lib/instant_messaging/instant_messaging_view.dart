@@ -73,10 +73,8 @@ class _InstantMessagingState extends State<InstantMessagingScreen> {
     if(state.error){
       final error = state.errorDetails;
       if(error.message == "70204: Channel with provided user and name already exists."){
-        // try again
-        await _e2eeBloc.device.deleteRatchetChannel(widget.chatroom.oppId);
-        _e2eeBloc.onCreateChat(widget.chatroom.oppId);
-
+        print("try getting channel instead...");
+        _e2eeBloc.onStartChat(widget.chatroom.oppId);
       }else if(error.message.contains(RegExp("Long-term key .* not found"))
         || error.message == "70602: Card for one or more of provided identities was not found."){
         // fails cleanly

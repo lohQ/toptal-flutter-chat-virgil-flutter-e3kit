@@ -31,9 +31,10 @@ class InstantMessagingBloc extends Bloc<InstantMessagingEvent, InstantMessagingS
 
         snapshot.documentChanges.forEach((change) async {
           if(change.type == DocumentChangeType.added){
-            docsToDelete.add(change.document.reference);
             final String authorId = change.document.data["author"];
             if(authorId != user.uid){
+              docsToDelete.add(change.document.reference);
+              print("authorId != userId");
               final message = change.document.data;
               String messageValue;
               if (message["value"].startsWith("_uri:")) {
@@ -41,11 +42,10 @@ class InstantMessagingBloc extends Bloc<InstantMessagingEvent, InstantMessagingS
                   final String downloadUri = await StorageRepo.getInstance().decodeUri(uri);
                   messageValue = "_uri:$downloadUri";
               } else {
-                  final decryptedText = await Device().ratchetDecrypt(oppUserId, message["value"]);
-                  if(decryptedText != null){
-                    messageValue = decryptedText;
-                  }else{
-                    messageValue = "failed to decrypt";
+                  try{
+                    messageValue = await Device().ratchetDecrypt(oppUserId, message["value"]);
+                  } catch (err){
+                    messageValue = err.message;
                   }
               }
               final processedMessage = MessageToDisplay(messageValue, false);

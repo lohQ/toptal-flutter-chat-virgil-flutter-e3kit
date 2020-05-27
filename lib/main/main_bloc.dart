@@ -1,5 +1,10 @@
 import 'dart:async';
 import 'package:bloc/bloc.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:toptal_chat/e2ee/src/device.dart';
+import 'package:toptal_chat/model/message_repo.dart';
+import 'package:toptal_chat/util/constants.dart';
 
 import 'main_event.dart';
 import 'main_state.dart';
@@ -14,10 +19,11 @@ import '../util/util.dart';
 class MainBloc extends Bloc<MainEvent, MainState> {
   StreamSubscription<List<Chatroom>> chatroomsSubscription;
 
-  void logout(MainWidget view) {
+  void logout() {
     LoginRepo.getInstance().signOut().then((success) {
       if (success) {
-        view.navigateToLogin();
+        add(LogoutEvent());
+        // view.navigateToLogin();
       }
     });
   }
@@ -55,6 +61,19 @@ class MainBloc extends Bloc<MainEvent, MainState> {
     });
   }
 
+  void deleteChatroom(String chatroomId, String oppId, BuildContext context) async {
+    await Device().deleteRatchetChannel(oppId);
+    try{
+      await Device().deleteRatchetChannel(oppId);
+    }catch(e){
+      print(e);
+    }
+    await MessageRepo().instance.deleteTable(chatroomId);
+    await Firestore.instance.collection(FirestorePaths.CHATROOMS_COLLECTION)
+      .document(chatroomId).delete();
+    print("chatroom deletion completed");
+  }
+
   @override
   Stream<MainState> mapEventToState(MainEvent event) async* {
     if (event is ClearChatroomsEvent) {
@@ -63,6 +82,8 @@ class MainBloc extends Bloc<MainEvent, MainState> {
       yield MainState.isLoading(false, MainState.chatrooms(event.chatrooms, state));
     } else if (event is MainErrorEvent) {
       yield MainState.isLoading(false, state);
+    } else if (event is LogoutEvent) {
+      yield MainState.logout(state);
     }
   }
 

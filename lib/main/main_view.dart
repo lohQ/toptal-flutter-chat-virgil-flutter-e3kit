@@ -40,8 +40,8 @@ class _MainState extends State<MainScreen> {
           create: (context) => MainBloc(),
           child: MainWidget(parentContext: context)
         ),
-        "error initializing eThree")
-    );    
+        (){})
+    );
   }
 
   @override
@@ -74,44 +74,85 @@ class MainWidget extends StatelessWidget {
             icon: Icon(Icons.lock_open),
             onPressed: () {
               BlocProvider.of<E2eeBloc>(context).onLogout();
-              BlocProvider.of<MainBloc>(context).logout(this);
+              BlocProvider.of<MainBloc>(context).logout();
             },
           )
         ],
       ),
-      body: BlocBuilder(
+      body: BlocListener(
           bloc: BlocProvider.of<MainBloc>(context),
-          builder: (context, MainState state) {
-            Widget content;
-            if (state.isLoading) {
-              content = Center(
-                child: CircularProgressIndicator(
-                  strokeWidth: 4.0,
-                ),
-              );
-            } else if (state.chatrooms.isEmpty) {
-              content = Center(
-                child: Text(
-                  "Looks like you don't have any active chatrooms\nLet's start one right now!",
-                  textAlign: TextAlign.center,
-                ),
-              );
-            } else {
-              content = ListView.builder(
-                padding: EdgeInsets.all(UIConstants.SMALLER_PADDING),
-                itemBuilder: (context, index) {
-                  return InkWell(
-                      child: _buildItem(state.chatrooms[index]),
-                      onTap: () {
-                        BlocProvider.of<MainBloc>(context).retrieveChatroomForParticipant(
-                            state.chatrooms[index].participants.first, this);
-                      });
-                },
-                itemCount: state.chatrooms.length,
-              );
+          listener: (context, MainState state) {
+            if (state.loggedIn == false) {
+              navigateToLogin(context);
             }
-            return _wrapContentWithFab(context, content);
-          }),
+          },
+          child: BlocBuilder(
+            bloc: BlocProvider.of<MainBloc>(context),
+            builder: (context, MainState state) {
+              Widget content; 
+              if (state.isLoading) {
+                content = Center(
+                  child: CircularProgressIndicator(
+                    strokeWidth: 4.0,
+                  ),
+                );
+              } else if (state.chatrooms.isEmpty) {
+                content = Center(
+                  child: Text(
+                    "Looks like you don't have any active chatrooms\nLet's start one right now!",
+                    textAlign: TextAlign.center,
+                  ),
+                );
+              } else {
+                content = ListView.builder(
+                  padding: EdgeInsets.all(UIConstants.SMALLER_PADDING),
+                  itemBuilder: (context, index) {
+                    return InkWell(
+                        child: _buildItem(state.chatrooms[index]),
+                        onTap: () {
+                          BlocProvider.of<MainBloc>(context).retrieveChatroomForParticipant(
+                              state.chatrooms[index].participants.first, this);
+                        },
+                        onLongPress: () {
+                          bool confirmDelete = false;
+                          showDialog( 
+                            context: context,
+                            builder: (context){
+                              return AlertDialog(
+                                title: Text("Delete Chatroom"),
+                                content: Text("Confirm delete chatroom with ${state.chatrooms[index].participants.first.displayName}?"),
+                                actions: <Widget>[
+                                  FlatButton(
+                                    child: Text("Cancel"), 
+                                    onPressed: (){
+                                      confirmDelete = false;
+                                      Navigator.pop(context);}),
+                                  FlatButton(
+                                    child: Text("Confirm delete"), 
+                                    onPressed: (){
+                                      confirmDelete = true;
+                                      Navigator.pop(context);}),
+                                ]);
+                            })
+                            .whenComplete((){
+                              if(confirmDelete){
+                                BlocProvider.of<MainBloc>(context).deleteChatroom(
+                                    state.chatrooms[index].id, state.chatrooms[index].participants.first.uid, context);}
+                            });
+                        },
+                    );
+                  },
+                  itemCount: state.chatrooms.length,
+                );
+              }
+              return _wrapContentWithFab(context, content);
+            })),
+      bottomNavigationBar: RaisedButton(
+        child: Text("Click here before uninstalling"),
+        onPressed: (){
+          BlocProvider.of<E2eeBloc>(context).onUninstall();
+        },
+      ),
     );
   }
 
@@ -140,8 +181,8 @@ class MainWidget extends StatelessWidget {
     return UserItem(user: chatroom.participants.first);
   }
 
-  void navigateToLogin() {
-    NavigationHelper.navigateToLogin(parentContext);
+  void navigateToLogin(BuildContext context) {
+    NavigationHelper.navigateToLogin(context);
   }
 
   void navigateToChatroom(SelectedChatroom chatroom) async {

@@ -22,12 +22,14 @@ class E2eeBloc extends Bloc<E2eeEvent, E2eeState>{
     }
     final isSignedIn = await device.isSignedIn();
     if(isSignedIn){
+      print("already signed in");
       add(E2eeOperationCompleted());
     }else{
       final hasAccount = await device.findSelf(uid);
       if(hasAccount){
         try{
           await device.restorePrivateKey("password");
+          print("signed in");
         }catch(e){
           // probably need to rotatePrivateKey
           add(E2eeErrorEvent(e));
@@ -36,21 +38,34 @@ class E2eeBloc extends Bloc<E2eeEvent, E2eeState>{
         try{
           await device.register();
           await device.backupPrivateKey("password");
+          print("registered");
         }catch(e){
           add(E2eeErrorEvent(e));
-          print("added error event");
         }
       }
       add(E2eeOperationCompleted());
     }
   }
 
-  void onLogout() async {
-    add(E2eeInProgressEvent());
+  onLogout() async {
+    // add(E2eeInProgressEvent());
     await device.cleanUp();
     device.eThree = null;
     device.publicKeyMap.clear();
     device.identity = null;
+    // add(E2eeOperationCompleted());
+  }
+
+  onUninstall() async {
+    add(E2eeInProgressEvent());
+    try{
+      await device.unregister();
+      // trigger database to clear all records?
+      // trigger firestore to delete all chatrooms? 
+    } on PlatformException catch (e) {
+      // not registered
+      print(e.message);
+    }
     add(E2eeOperationCompleted());
   }
 
@@ -59,10 +74,11 @@ class E2eeBloc extends Bloc<E2eeEvent, E2eeState>{
     add(E2eeInProgressEvent());
     try{
       device.publicKeyMap = await device.findUsers([identity]);
-      print("publicKeyMap now has ${device.publicKeyMap.length} items");
       await device.createRatchetChannel(identity);
       add(E2eeOperationCompleted());
-    }catch(e){
+    }on PlatformException catch (e){
+      print("ratchet channel creation failed");
+      print(e.message);
       add(E2eeErrorEvent(e));
     }
   }
@@ -77,11 +93,15 @@ class E2eeBloc extends Bloc<E2eeEvent, E2eeState>{
         try{
           await device.joinRatchetChannel(identity);
           add(E2eeOperationCompleted());
-        }catch(e){
+        }on PlatformException catch (e){
+          print("join ratchet channel failed");
+          print(e.message);
           add(E2eeErrorEvent(e));
         }
       }
     }on PlatformException catch (e){
+      print("get ratchet channel failed");
+      print(e.message);
       add(E2eeErrorEvent(e));
     }
   }
@@ -96,7 +116,7 @@ class E2eeBloc extends Bloc<E2eeEvent, E2eeState>{
     if(event is E2eeInProgressEvent){
       yield E2eeState.loading(true);
     }else if(event is E2eeErrorEvent){
-      yield E2eeState.error();
+      yield E2eeState.error(event.error);
     }else if(event is E2eeOperationCompleted){
       yield E2eeState.loading(false);
     }

@@ -25,6 +25,9 @@ class InstantMessagingBloc extends Bloc<InstantMessagingEvent, InstantMessagingS
     final User user = await UserRepo.getInstance().getCurrentUser();
     chatroomSubscription = ChatRepo.getInstance().getMessagesForChatroom(chatroomId).listen(
       (snapshot) {
+        if(snapshot.documents.length == 0){
+          return;
+        }
         snapshot.documents.forEach(
           (m) async {
             final String authorId = await m.data["author"];
@@ -59,14 +62,20 @@ class InstantMessagingBloc extends Bloc<InstantMessagingEvent, InstantMessagingS
     String cipher = await Device().ratchetEncrypt(oppUserId, text);
     if(cipher != null){
       final User user = await UserRepo.getInstance().getCurrentUser();
-      final bool success = await ChatRepo.getInstance().sendMessageToChatroom(chatroomId, user, cipher);
-      if (!success) {
-        add(MessageSendErrorEvent());
-      }else{
-        final m = MessageToDisplay(text, true);
-        curMessageList.insert(0,m);
-        await messageRepo.saveMessage(m, chatroomId);
-        add(MessageSentEvent());
+      try{
+        final bool success = await ChatRepo.getInstance().sendMessageToChatroom(chatroomId, user, cipher);
+        if (!success) {
+          add(MessageSendErrorEvent());
+        }else{
+          final m = MessageToDisplay(text, true);
+          curMessageList.insert(0,m);
+          await messageRepo.saveMessage(m, chatroomId);
+          add(MessageSentEvent());
+        }
+      }catch(e){
+        if(e.message == "chatroom does not exist"){
+          add(MessageSendErrorEvent());
+        }
       }
     }else{
       add(MessageSendErrorEvent());

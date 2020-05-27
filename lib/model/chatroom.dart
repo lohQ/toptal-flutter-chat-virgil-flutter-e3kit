@@ -10,8 +10,9 @@ class SelectedChatroom {
 }
 
 class Chatroom {
-  Chatroom(this.participants, [this.messages]);
+  Chatroom(this.id, this.participants, [this.messages]);
 
+  final String id;
   final List<User> participants;
   final List<Message> messages;
 }

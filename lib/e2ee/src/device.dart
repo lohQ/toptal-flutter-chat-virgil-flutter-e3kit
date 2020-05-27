@@ -27,14 +27,10 @@ class Device {
       print("retrieved Json Web Token from server");
       return data["token"];
     }
-    try {
-      //# start of snippet: e3kit_initialize
-      this.eThree = await EThree.init(identity, tokenCallback);
-      //# end of snippet: e3kit_initialize
-      _log('Initialized');
-    } catch(err) {
-      _log('Failed initializing: $err');
-    }
+    //# start of snippet: e3kit_initialize
+    this.eThree = await EThree.init(identity, tokenCallback);
+    //# end of snippet: e3kit_initialize
+    _log('Initialized');
   }
 
   EThree getEThree() {
@@ -136,7 +132,7 @@ class Device {
       _log('Backed up private key');
     } on PlatformException catch(err) {
       _log('Failed backing up private key: $err');
-      if (err.code == 'entry_already_exists') {
+      if (err.message == "70114: Can't backup private key as it's already backed up.") {
         await eThree.resetPrivateKeyBackup();
         _log('Reset private key backup. Trying again...');
         await backupPrivateKey(password);
@@ -222,34 +218,26 @@ class Device {
   unregister() async {
     final eThree = getEThree();
 
-    try {
+    // try {
       //# start of snippet: e3kit_unregister
       await eThree.unregister();
       //# end of snippet: e3kit_unregister
       _log('Unregistered');
-    } on PlatformException catch(err) {
-      _log('Failed unregistering: $err');
-    }
+    // } on PlatformException catch(err) {
+    //   _log('Failed unregistering: $err');
+    // }
   }
 
   createRatchetChannel(String identity) async {
     final eThree = getEThree();
-    try{
-      await eThree.createRatchetChannel(identity);
-      print("Ratchet channel created");
-    } on PlatformException catch (err) {
-      print("Ratchet channel creation failed: $err");
-    }
+    await eThree.createRatchetChannel(identity);
+    print("Ratchet channel created");
   }
 
   joinRatchetChannel(String identity) async {
     final eThree = getEThree();
-    try{
-      await eThree.joinRatchetChannel(identity);
-      print("Ratchet channel joined");
-    } on PlatformException catch (err) {
-      print("Ratchet channel join failed: $err");
-    }
+    await eThree.joinRatchetChannel(identity);
+    print("Ratchet channel joined");
   }
 
   Future<bool> hasRatchetChannel(String identity) async {
@@ -270,12 +258,7 @@ class Device {
 
   Future<bool> getRatchetChannel(String identity) async {
     final eThree = getEThree();
-    try{
-      return await eThree.getRatchetChannel(identity);
-    } on PlatformException catch (err) {
-      print("Failed to get ratchet channel: $err");
-      return false;
-    }
+    return await eThree.getRatchetChannel(identity);
   }
 
   Future<String> ratchetEncrypt(String identity, String message) async {

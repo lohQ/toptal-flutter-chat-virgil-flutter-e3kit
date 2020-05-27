@@ -26,7 +26,7 @@ class Deserializer {
     List<DocumentReference> participantReferences = List<DocumentReference>(2);
     participantReferences[0] = document['participants'][0];
     participantReferences[1] = document['participants'][1];
-    return Chatroom(deserializeUsersFromReference(participantReferences, users).toList(), List<Message>());
+    return Chatroom(document.documentID, deserializeUsersFromReference(participantReferences, users).toList(), List<Message>());
   }
 
   // static Chatroom deserializeChatroomMessages(DocumentSnapshot document, List<User> users) {

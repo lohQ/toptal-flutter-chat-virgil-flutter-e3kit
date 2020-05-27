@@ -2,11 +2,11 @@ import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:toptal_chat/e2ee/e2ee_bloc.dart';
 import 'package:toptal_chat/e2ee/e2ee_wrapper.dart';
-import 'package:toptal_chat/e2ee/src/device.dart';
 import 'package:toptal_chat/model/chatroom.dart';
 import 'package:toptal_chat/model/message.dart';
 import 'package:toptal_chat/model/message_repo.dart';
@@ -34,13 +34,18 @@ class _InstantMessagingState extends State<InstantMessagingScreen> {
   @override
   void initState(){
     super.initState();
-    // dangerous without await
-    MessageRepo().instance.createTable(widget.chatroom.id);
-    if(widget.isNew){
-      _e2eeBloc.onCreateChat(widget.chatroom.oppId);
-    }else{
-      _e2eeBloc.onStartChat(widget.chatroom.oppId);
-    }
+    MessageRepo().instance.createTable(widget.chatroom.id)
+      .whenComplete((){
+        if(widget.isNew){
+          _e2eeBloc.onCreateChat(widget.chatroom.oppId);
+        }else{
+          _e2eeBloc.onStartChat(widget.chatroom.oppId);
+        }
+      })
+      .catchError((e){
+        print("error creating table: $e");
+        Navigator.pop(context);
+      });
   }
 
   @override
@@ -57,10 +62,29 @@ class _InstantMessagingState extends State<InstantMessagingScreen> {
         BlocProvider<InstantMessagingBloc>(
           create: (context) => InstantMessagingBloc(widget.chatroom.id, widget.chatroom.oppId),
           child: InstantMessagingWidget(widget.chatroom.id, widget.chatroom.displayName, widget.chatroom.oppId)),
-        "error initializing double ratchet session"
+        (PlatformException error){ mapErrorToAction(error); }
         ),
     );
   }
+
+  void mapErrorToAction(PlatformException error) async {
+    if(error.message == "channel already exists"){
+    }else if(error.message == "long term key does not exist"){
+    }else if(error.message == "no invitation"){
+    }else {
+    }
+    await _e2eeBloc.device.deleteRatchetChannel(widget.chatroom.oppId);
+    try{
+      await _e2eeBloc.device.deleteRatchetChannel(widget.chatroom.oppId);
+    }catch(e){
+      print(e);
+    }
+    await MessageRepo().instance.deleteTable(widget.chatroom.id);
+    await Firestore.instance.collection(FirestorePaths.CHATROOMS_COLLECTION)
+      .document(widget.chatroom.id).delete();
+    print("chatroom deletion completed");
+  }
+
 }
 
 class InstantMessagingWidget extends StatelessWidget {
@@ -72,7 +96,9 @@ class InstantMessagingWidget extends StatelessWidget {
    : super(key: key){
     MessageRepo().instance.readMessages(chatroomId)
     .then((messageList){
-      messageToDisplay.addAll(messageList);
+      if(messageList != null){
+        messageToDisplay.addAll(messageList.reversed);
+      }
     });
   }
 
@@ -80,22 +106,7 @@ class InstantMessagingWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
         appBar: AppBar(
-          title: Text(displayName),
-          actions: <Widget>[
-            IconButton(
-              icon: Icon(Icons.delete),
-              onPressed: () async {
-                try{
-                  await Device().deleteRatchetChannel(oppId);
-                  // message repo would be initialized by now
-                  await MessageRepo().instance.deleteTable(chatroomId);
-                  await Firestore.instance.collection(FirestorePaths.CHATROOMS_COLLECTION)
-                    .document(chatroomId).delete()
-                    .whenComplete((){Navigator.pop(context);});
-                }catch(e){
-                  print("error deleting ratchet channel: $e");
-                }},
-            )]),
+          title: Text(displayName)),
         body: Column(
           mainAxisSize: MainAxisSize.max,
           verticalDirection: VerticalDirection.up,
@@ -153,7 +164,7 @@ class InstantMessagingWidget extends StatelessWidget {
       builder: (context, InstantMessagingState state) {
         if (state.error) {
           return Center(
-            child: Text("An error ocurred"),
+            child: Text("An error ocurred, pleaase leave this chatroom"),
           );
         } else {
           if(state.message != null){

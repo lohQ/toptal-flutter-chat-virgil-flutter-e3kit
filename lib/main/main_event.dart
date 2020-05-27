@@ -11,3 +11,5 @@ class ChatroomsUpdatedEvent extends MainEvent {
 }
 
 class MainErrorEvent extends MainEvent {}
+
+class LogoutEvent extends MainEvent {}

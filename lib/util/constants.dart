@@ -28,6 +28,7 @@ class FirestorePaths {
   static const String ROOT_PATH = "";
   static const String USERS_COLLECTION = ROOT_PATH + "users";
   static const String CHATROOMS_COLLECTION = ROOT_PATH + "chatrooms";
+  static const String DELETED_CHATROOMS_COLLECTION = ROOT_PATH + "deleted_chatrooms";
   static const String MESSAGES_COLLECTION = "messages";
   static const String USER_DOCUMENT = USERS_COLLECTION + "/{user_id}";
 }

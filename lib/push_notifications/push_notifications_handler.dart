@@ -11,7 +11,7 @@ class PushNotificationsHandler {
   final GlobalKey<NavigatorState> appStateKey;
   PushNotificationsHandler(this.appStateKey);
 
-  FirebaseMessaging _firebaseMessaging = FirebaseMessaging();
+  final _firebaseMessaging = FirebaseMessaging();
 
   void setup() {
     if (Platform.isIOS) {
@@ -31,7 +31,7 @@ class PushNotificationsHandler {
       },
       onLaunch: (Map<String, dynamic> message) {
         return _handleIncomingNotification(message);
-      }
+      },
     );
   }
 
@@ -61,4 +61,5 @@ class PushNotificationsHandler {
         });
     return false;
   }
+
 }

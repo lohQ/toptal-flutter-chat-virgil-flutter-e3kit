@@ -51,14 +51,10 @@ class MessageRepo {
 
   Future createTable(String chatroomId) async {
     final String tableName = getTableNameForChatroom(chatroomId);
-    try{
-      await database.execute(
-        "CREATE TABLE IF NOT EXISTS $tableName(id INTEGER PRIMARY KEY ASC, value TEXT, outgoing INTEGER)"
-      );
-      print("table for chatroom $chatroomId created if not exists");
-    }catch(e){
-      print("error creating table: $e");
-    }
+    await database.execute(
+      "CREATE TABLE IF NOT EXISTS $tableName(id INTEGER PRIMARY KEY ASC, value TEXT, outgoing INTEGER)"
+    );
+    print("table for chatroom $chatroomId created if not exists");
   }
 
   deleteTable(String chatroomId) async {

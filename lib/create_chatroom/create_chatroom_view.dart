@@ -41,6 +41,13 @@ class CreateChatroomWidget extends StatelessWidget {
         body: BlocBuilder(
             bloc: BlocProvider.of<CreateChatroomBloc>(context),
             builder: (context, CreateChatroomState state) {
+              if (state.canceled) {
+                return Center(
+                  child: Text(
+                    "unable to create chatroom now: opp user ratchet channel deletion still pending",
+                    style: TextStyle(fontSize: 16)),
+                );
+              }
               if (state.isLoading) {
                 return Center(
                   child: CircularProgressIndicator(

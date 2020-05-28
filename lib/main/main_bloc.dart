@@ -3,6 +3,7 @@ import 'package:bloc/bloc.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:toptal_chat/e2ee/src/device.dart';
+import 'package:toptal_chat/model/chatroon_repo.dart';
 import 'package:toptal_chat/model/message_repo.dart';
 import 'package:toptal_chat/util/constants.dart';
 
@@ -44,16 +45,25 @@ class MainBloc extends Bloc<MainEvent, MainState> {
             Util.swapElementsInList(room.participants, 0, 1);
           }
         });
-        // there is chatrooms deleted, by self or by opp
-        if(chatrooms.length < state.chatrooms.length){
-          final deletedChatrooms = state.chatrooms.where((r)=>!chatrooms.contains(r));
-          for(final room in deletedChatrooms){
-            await MessageRepo().instance.deleteTable(room.id);
-            final oppId = room.participants.firstWhere((p)=>(p.uid!=user.uid)).uid;
+        try{
+          final curActiveUserIds = chatrooms.map((r)=>r.participants.first.uid).toList();
+          final prevActiveUserIds = ChatroomRepo.instance.activeChatrooms;
+          final notActiveAnymoreUserIds = prevActiveUserIds.where((r) => !(curActiveUserIds.contains(r)));
+          // assume each pair of users can only have one chatroom at a time, be it active or deleted
+          for(final oppId in notActiveAnymoreUserIds){
+            final deletedChatroom = await Firestore.instance.collection(FirestorePaths.DELETED_CHATROOMS_COLLECTION)
+              .document("${oppId}_${user.uid}").get();
+            final chatroomId = deletedChatroom.data["chatroomId"];
+            await MessageRepo().instance.deleteTable(chatroomId);
             await Device().deleteRatchetChannel(oppId);
+            await Firestore.instance.collection(FirestorePaths.DELETED_CHATROOMS_COLLECTION)
+              .document("${oppId}_${user.uid}").delete();
           }
+          ChatroomRepo.instance.setActiveChatroom(curActiveUserIds);
+          add(ChatroomsUpdatedEvent(chatrooms));
+        }catch(e){
+          print("error reacting to chatroom deletion: $e");
         }
-        add(ChatroomsUpdatedEvent(chatrooms));
       });
     } else {
       add(MainErrorEvent());
@@ -73,9 +83,14 @@ class MainBloc extends Bloc<MainEvent, MainState> {
   void deleteChatroom(String chatroomId, String oppId, BuildContext context) async {
     // await Device().deleteRatchetChannel(oppId);
     // await MessageRepo().instance.deleteTable(chatroomId);
-    await Firestore.instance.collection(FirestorePaths.CHATROOMS_COLLECTION)
+    // TODO: delete Messages collection
+    ChatroomRepo.instance.removeActiveChatroom(oppId);
+    Firestore.instance.collection(FirestorePaths.CHATROOMS_COLLECTION)
       .document(chatroomId).delete();
-    print("chatroom deletion completed");
+    final currentUser = await UserRepo.getInstance().getCurrentUser();
+    Firestore.instance.collection(FirestorePaths.DELETED_CHATROOMS_COLLECTION)
+      .document("${currentUser.uid}_$oppId").setData({"pending": true, "chatroomId": chatroomId});
+    ChatroomRepo.instance.addDeletedChatroom(oppId);
   }
 
   @override

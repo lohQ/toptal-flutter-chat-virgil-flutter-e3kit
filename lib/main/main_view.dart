@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:toptal_chat/e2ee/e2ee_bloc.dart';
 import 'package:toptal_chat/e2ee/e2ee_state.dart';
 import 'package:toptal_chat/e2ee/e2ee_wrapper.dart';
+import 'package:toptal_chat/model/chatroon_repo.dart';
 import 'package:toptal_chat/model/message_repo.dart';
 
 import 'main_bloc.dart';
@@ -30,6 +31,7 @@ class _MainState extends State<MainScreen> {
     _e2eeBloc.onInit();
     // dangerous without await 
     MessageRepo.init();
+    ChatroomRepo.instance.init();
   }
 
   @override
@@ -47,10 +49,6 @@ class _MainState extends State<MainScreen> {
     );
   }
 
-  // void mapActionToError(E2eeState e){
-  //   // if there is error here then all subsequent operations will have problems
-  // }
-
   Widget mapWidgetToError(E2eeState e){
     return Center(
       child: Text(
@@ -64,6 +62,7 @@ class _MainState extends State<MainScreen> {
     _e2eeBloc.close();
     // dangerous without await 
     MessageRepo.dismiss();
+    ChatroomRepo.instance.save();
     super.dispose();
   }
 

@@ -1,19 +1,18 @@
 import '../model/user.dart';
-import '../model/chatroom.dart';
 
-class CreateChatroomAction {
-  CreateChatroomAction(this.chatroom, this.canceled);
+// class CreateChatroomAction {
+//   CreateChatroomAction(this.chatroom, this.canceled);
 
-  final SelectedChatroom chatroom;
-  final bool canceled;
-}
+//   final SelectedChatroom chatroom;
+// }
 
 class CreateChatroomState {
   final List<User> users;
   final bool isLoading;
-  final CreateChatroomAction action;
+  final bool canceled;
+  // final CreateChatroomAction action;
 
-  CreateChatroomState._internal(this.users, this.isLoading, {this.action});
+  CreateChatroomState._internal(this.users, this.isLoading, {this.canceled = false});
 
   factory CreateChatroomState.initial() =>
       CreateChatroomState._internal(List<User>(0), true);
@@ -25,4 +24,7 @@ class CreateChatroomState {
   factory CreateChatroomState.users(
           List<User> users, CreateChatroomState state) =>
       CreateChatroomState._internal(users, state.isLoading);
+
+  factory CreateChatroomState.canceled() => 
+      CreateChatroomState._internal(List<User>(0), false, canceled: true);
 }

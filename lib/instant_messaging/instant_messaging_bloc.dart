@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:io';
 import 'package:bloc/bloc.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:toptal_chat/e2ee/src/device.dart';
 import 'package:toptal_chat/model/message_repo.dart';
 
@@ -34,7 +33,6 @@ class InstantMessagingBloc extends Bloc<InstantMessagingEvent, InstantMessagingS
             final String authorId = change.document.data["author"];
             if(authorId != user.uid){
               docsToDelete.add(change.document.reference);
-              print("authorId != userId");
               final message = change.document.data;
               String messageValue;
               if (message["value"].startsWith("_uri:")) {
@@ -71,7 +69,6 @@ class InstantMessagingBloc extends Bloc<InstantMessagingEvent, InstantMessagingS
   }
 
   void send(String text, List<MessageToDisplay> curMessageList) async {
-    print("sending message: $text");
     final User user = await UserRepo.getInstance().getCurrentUser();
     if(text.startsWith("_uri")){
       final bool success = await ChatRepo.getInstance().sendMessageToChatroom(chatroomId, user, text);

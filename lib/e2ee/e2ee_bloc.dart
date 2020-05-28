@@ -41,7 +41,16 @@ class E2eeBloc extends Bloc<E2eeEvent, E2eeState>{
           add(E2eeOperationCompleted());
         }catch(e){
           print("error restoring private key: $e");
-          await addTimedError(e);
+          // await addTimedError(e);
+          print("attempting to unregister ...");
+          try{
+            await device.unregister();
+            print("unregistered");
+            onInit();
+          }catch(e){
+            print("unregistration failed");
+            add(E2eeErrorEvent(e));
+          }
         }
       }else{
         try{
@@ -65,24 +74,24 @@ class E2eeBloc extends Bloc<E2eeEvent, E2eeState>{
     // add(E2eeOperationCompleted());
   }
 
-  onUnregister(List<String> chatroomIds) async {
-    add(E2eeInProgressEvent());
-    try{
-      await device.unregister();
-      // TODO: delete subcollection
-      chatroomIds.forEach((chatroomId) async {
-        await Firestore.instance.collection("chatrooms").document(chatroomId).delete();
-        await MessageRepo().instance.deleteTable(chatroomId);
-      });
-      // await device.register();
-      // trigger database to clear all records?
-      // trigger firestore to delete all chatrooms? 
-    } on PlatformException catch (e) {
-      print(e.message);
-      add(E2eeErrorEvent(e));
-    }
-    add(E2eeOperationCompleted());
-  }
+  // onUnregister(List<String> chatroomIds) async {
+  //   add(E2eeInProgressEvent());
+  //   try{
+  //     await device.unregister();
+  //     // TODO: delete subcollection
+  //     chatroomIds.forEach((chatroomId) async {
+  //       await Firestore.instance.collection("chatrooms").document(chatroomId).delete();
+  //       await MessageRepo().instance.deleteTable(chatroomId);
+  //     });
+  //     // await device.register();
+  //     // trigger database to clear all records?
+  //     // trigger firestore to delete all chatrooms? 
+  //   } on PlatformException catch (e) {
+  //     print(e.message);
+  //     add(E2eeErrorEvent(e));
+  //   }
+  //   add(E2eeOperationCompleted());
+  // }
 
   // detect whether chat is correctly created -- if not then re-create?
   Future<void> onCreateChat(String identity) async {

@@ -161,30 +161,6 @@ class MainWidget extends StatelessWidget {
               }
               return _wrapContentWithFab(context, content);
             })),
-      bottomNavigationBar: RaisedButton(
-        child: Text("Click to Unregister on virgil cloud"),
-        onPressed: () async {
-          bool confirmReregister = false;
-          await showDialog(context: context, child: AlertDialog(
-            title: Text("Unregister on virgil cloud"),
-            content: Text("Unregistering means giving up previous allocated identity on virgil cloud, and you would not be able to access previous chatrooms afterwards. "),
-            actions: <Widget>[
-              FlatButton(child: Text("Cancel"),
-                onPressed: (){
-                  confirmReregister = false;
-                  Navigator.pop(context);}),
-              FlatButton(child: Text("Confirm Unregister"),
-                onPressed: (){
-                  confirmReregister = true;
-                  Navigator.pop(context);}),
-            ],
-          )).whenComplete((){
-            if(confirmReregister){
-              BlocProvider.of<E2eeBloc>(context).onUnregister(chatroomIds);
-            }
-          });
-        },
-      ),
     );
   }
 

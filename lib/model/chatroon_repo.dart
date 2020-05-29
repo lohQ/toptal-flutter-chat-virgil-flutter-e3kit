@@ -2,9 +2,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class ChatroomRepo {
   final deletedChatrooms = List<String>();
-  final activeChatrooms = List<String>();
   static const DELETED_CHATROOMS_KEY = "deleted_chatrooms";
-  static const ACTIVE_CHATROOMS_KEY = "active_chatrooms";
   
   SharedPreferences sharedPreference;
 
@@ -18,42 +16,25 @@ class ChatroomRepo {
     if(deletedChatroomsStrList != null){
       deletedChatrooms.addAll(deletedChatroomsStrList);
     }
-    final activeChatroomsStrList = sharedPreference.getStringList(ACTIVE_CHATROOMS_KEY);
-    print("activeChatroomList: $activeChatroomsStrList");
-    if(activeChatroomsStrList != null){
-      activeChatrooms.addAll(activeChatroomsStrList);
-    }
     print("chatroom repo initialized");
   }
 
-  void addDeletedChatroom(String pendingDeletionUserId) {
-    deletedChatrooms.add(pendingDeletionUserId);
+  void addDeletedChatroom(String oppUserId) {
+    deletedChatrooms.add(oppUserId);
     // print("added deletedChatrooms");
   }
 
-  void removeDeletedChatroom(String pendingDeletionUserId) {
-    deletedChatrooms.remove(pendingDeletionUserId);
+  void removeDeletedChatroom(String oppUserId) {
+    deletedChatrooms.remove(oppUserId);
     // print("removed deletedChatrooms");
   }
 
-  bool deletionPendingForUser(String oppId){
-    return deletedChatrooms.contains(oppId);
+  bool deletionPendingForUser(String oppUserId){
+    return deletedChatrooms.contains(oppUserId);
   }
 
-  void removeActiveChatroom(String userId) {
-    activeChatrooms.remove(userId);
-    // print("removed activeChatrooms");
-  }
-
-  void setActiveChatroom(List<String> userIds) {
-    activeChatrooms.clear();
-    activeChatrooms.addAll(userIds);
-    // print("updated activeChatrooms");
-  }
-
-  Future<void> save() async {
+ Future<void> save() async {
     await sharedPreference.setStringList(DELETED_CHATROOMS_KEY, deletedChatrooms);
-    await sharedPreference.setStringList(ACTIVE_CHATROOMS_KEY, activeChatrooms);
     print("chatroom repo saved");
   }
 

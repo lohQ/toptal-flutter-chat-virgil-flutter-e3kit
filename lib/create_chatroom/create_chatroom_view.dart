@@ -57,11 +57,20 @@ class CreateChatroomWidget extends StatelessWidget {
               }
               return ListView.builder(
                 itemBuilder: (context, index) {
+                  final unableToStartChat = BlocProvider.of<CreateChatroomBloc>(context).unableToStartChat(state.users[index]);
+                  final requestedToStartChat = state.requestStartChatUids.contains(state.users[index].uid);
                   return InkWell(
-                      child: _buildItem(state.users[index]),
-                      onTap: () async {
-                        BlocProvider.of<CreateChatroomBloc>(context).startChat(state.users[index], this);
-                      }
+                      child: _buildItem(state.users[index], unableToStartChat, requestedToStartChat),
+                      onTap: unableToStartChat
+                      ? () {
+                        showDialog(
+                          context: context, child: _buildDialog(context, state.users[index]));
+                        }
+                      : () async {
+                          requestedToStartChat
+                          ? BlocProvider.of<CreateChatroomBloc>(context).startChatUponRequest(state.users[index], this)
+                          : BlocProvider.of<CreateChatroomBloc>(context).startChat(state.users[index], this);
+                        }
                   );
                 },
                 itemCount: state.users.length,
@@ -70,8 +79,29 @@ class CreateChatroomWidget extends StatelessWidget {
             }));
   }
 
-  Widget _buildItem(User user) {
-    return UserItem(user: user);
+  Widget _buildItem(User user, bool unableToStartChat, bool requestedToStartChat) {
+    return UserItem(user: user, unableToStartChat: unableToStartChat, requestedToStartChat: requestedToStartChat);
+  }
+
+  AlertDialog _buildDialog(BuildContext context, User user){
+    return AlertDialog(
+      title: Text("Unable to Start Chatroom"),
+      content: Text("You have deleted the chatroom with this user previously. To create a new chatroom, you have to ask the other user to create it. "),
+      actions: <Widget>[
+        FlatButton(
+          child: Text("Cancel"),
+          onPressed: (){
+            Navigator.pop(context);
+          }),
+        FlatButton(
+          child: Text("Ask to create"),
+          onPressed: (){
+            BlocProvider.of<CreateChatroomBloc>(context).sendRequsetToStartChat(user);
+            Navigator.pop(context);
+          },
+        )
+      ],
+    );
   }
 
   void navigateToSelectedChatroom(SelectedChatroom chatroom) {

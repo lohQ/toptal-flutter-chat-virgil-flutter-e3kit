@@ -7,6 +7,9 @@ import '../model/user.dart';
 class Deserializer {
 
   static List<User> deserializeUsersFromReference(List<DocumentReference> references, List<User> users) {
+    if(users == null){
+      return List<User>(0);
+    }
     return users.where((item) => references.any((reference) => reference.documentID == item.uid)).toList();
   }
 

@@ -44,26 +44,11 @@ class MainBloc extends Bloc<MainEvent, MainState> {
           if (room.participants.first.uid == user.uid) {
             Util.swapElementsInList(room.participants, 0, 1);
           }
-        });
-        try{
-          final curActiveUserIds = chatrooms.map((r)=>r.participants.first.uid).toList();
-          final prevActiveUserIds = ChatroomRepo.instance.activeChatrooms;
-          final notActiveAnymoreUserIds = prevActiveUserIds.where((r) => !(curActiveUserIds.contains(r)));
-          // assume each pair of users can only have one chatroom at a time, be it active or deleted
-          for(final oppId in notActiveAnymoreUserIds){
-            final deletedChatroom = await Firestore.instance.collection(FirestorePaths.DELETED_CHATROOMS_COLLECTION)
-              .document("${oppId}_${user.uid}").get();
-            final chatroomId = deletedChatroom.data["chatroomId"];
-            await MessageRepo().instance.deleteTable(chatroomId);
-            await Device().deleteRatchetChannel(oppId);
-            await Firestore.instance.collection(FirestorePaths.DELETED_CHATROOMS_COLLECTION)
-              .document("${oppId}_${user.uid}").delete();
+          if (ChatroomRepo.instance.deletedChatrooms.contains(room.participants.first.uid)){
+            ChatroomRepo.instance.removeDeletedChatroom(room.participants.first.uid);
           }
-          ChatroomRepo.instance.setActiveChatroom(curActiveUserIds);
-          add(ChatroomsUpdatedEvent(chatrooms));
-        }catch(e){
-          print("error reacting to chatroom deletion: $e");
-        }
+        });
+        add(ChatroomsUpdatedEvent(chatrooms));
       });
     } else {
       add(MainErrorEvent());
@@ -81,15 +66,13 @@ class MainBloc extends Bloc<MainEvent, MainState> {
   }
 
   void deleteChatroom(String chatroomId, String oppId, BuildContext context) async {
-    // await Device().deleteRatchetChannel(oppId);
-    // await MessageRepo().instance.deleteTable(chatroomId);
     // TODO: delete Messages collection
-    ChatroomRepo.instance.removeActiveChatroom(oppId);
     Firestore.instance.collection(FirestorePaths.CHATROOMS_COLLECTION)
       .document(chatroomId).delete();
-    final currentUser = await UserRepo.getInstance().getCurrentUser();
-    Firestore.instance.collection(FirestorePaths.DELETED_CHATROOMS_COLLECTION)
-      .document("${currentUser.uid}_$oppId").setData({"pending": true, "chatroomId": chatroomId});
+    Device().deleteRatchetChannel(oppId);
+    // final currentUser = await UserRepo.getInstance().getCurrentUser();
+    // Firestore.instance.collection(FirestorePaths.DELETED_CHATROOMS_COLLECTION)
+    //   .document("${currentUser.uid}_$oppId").setData({"pending": true, "chatroomId": chatroomId});
     ChatroomRepo.instance.addDeletedChatroom(oppId);
   }
 

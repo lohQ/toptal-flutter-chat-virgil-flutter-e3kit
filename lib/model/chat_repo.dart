@@ -98,8 +98,6 @@ class ChatRepo {
         .snapshots();
   }
 
-  
-
   Future<SelectedChatroom> startChatroomForUsers(List<User> users) async {
     DocumentReference userRef = _firestore
         .collection(FirestorePaths.USERS_COLLECTION)

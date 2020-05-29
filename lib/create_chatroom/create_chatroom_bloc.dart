@@ -15,6 +15,7 @@ class CreateChatroomBloc
     extends Bloc<CreateChatroomEvent, CreateChatroomState> {
   User currentUser;
   StreamSubscription<List<User>> chatUserSubscription;
+  StreamSubscription<List<String>> requestStartChatUserSubscription;
 
   CreateChatroomBloc();
 
@@ -38,25 +39,55 @@ class CreateChatroomBloc
       List<User> processedListOfUsers = users.where((user) => user.uid != currentUser.uid).toList();
       add(ChatroomUserListUpdatedEvent(processedListOfUsers));
     });
+    requestStartChatUserSubscription = Firestore.instance.collection("users")
+      .document(currentUser.uid).snapshots()
+      .map((snapshot){
+        final requestingUids = List<String>();
+        if(snapshot.data.containsKey("requestStartChat")){
+          final Iterable<String> requestStartChatData = snapshot.data["requestStartChat"].cast<String>();
+          requestingUids.addAll(requestStartChatData);
+        }
+        return requestingUids;
+      })
+      .listen((uids){
+        add(ChatroomRequestListUpdatedEvent(uids));
+      });
+  }
+
+  void sendRequsetToStartChat(User user) async {
+    final List<String> requestList = (await Firestore.instance.collection(FirestorePaths.USERS_COLLECTION)
+      .document(user.uid).get()).data["requestStartChat"].cast<String>();
+    if(!requestList.contains(currentUser.uid)){
+      requestList.add(currentUser.uid);
+    }
+    await Firestore.instance.collection(FirestorePaths.USERS_COLLECTION)
+      .document(user.uid).setData(
+        {"requestStartChat" : requestList},
+        merge: true
+      );
+    print("request sent");
+  }
+
+  void startChatUponRequest(User user, CreateChatroomWidget view) async {
+    final requestList = state.requestStartChatUids;
+    requestList.remove(user.uid);
+    await Firestore.instance.collection("users")
+      .document(currentUser.uid).setData(
+        {"requestStartChat" : requestList},
+        merge: true
+      );
+    print("request to start chat handled");
+    startChat(user, view);
+  }
+
+  bool unableToStartChat(User user){
+    return ChatroomRepo.instance.deletionPendingForUser(user.uid);
   }
 
   void startChat(User user, CreateChatroomWidget view) async {
     add(CreateChatroomRequestedEvent());
     assert(currentUser != null);
     assert(currentUser != user);
-
-    if(ChatroomRepo.instance.deletionPendingForUser(user.uid)){
-      final doc = await Firestore.instance.collection(FirestorePaths.DELETED_CHATROOMS_COLLECTION)
-        .document("${currentUser.uid}_${user.uid}").get();
-      if(doc?.data != null){
-        print("unable to create chatroom now: opp user ratchet channel deletion still pending");
-        add(CancelCreateChatroomEvent());
-        return;
-      }else{
-        ChatroomRepo.instance.removeDeletedChatroom(user.uid);
-        print("chatroom deleted at opp side, local record deleted");
-      }
-    }
 
     List<User> chatroomUsers = List<User>(2);
     chatroomUsers[0] = user;
@@ -73,7 +104,9 @@ class CreateChatroomBloc
     } else if (event is CreateChatroomRequestedEvent) {
       yield CreateChatroomState.isLoading(true, state);
     } else if (event is CancelCreateChatroomEvent) {
-      yield CreateChatroomState.canceled();
+      yield CreateChatroomState.canceled(state);
+    } else if (event is ChatroomRequestListUpdatedEvent) {
+      yield CreateChatroomState.requestingUsers(event.uids, state);
     }
   }
 
@@ -81,6 +114,9 @@ class CreateChatroomBloc
   Future<void> close() async {
     if (chatUserSubscription != null) {
       chatUserSubscription.cancel();
+    }
+    if (requestStartChatUserSubscription != null) {
+      requestStartChatUserSubscription.cancel();
     }
     super.close();
   }

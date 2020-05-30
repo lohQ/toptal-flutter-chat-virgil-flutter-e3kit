@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:toptal_chat/main/main_bloc.dart';
+import 'package:toptal_chat/main/main_state.dart';
 
 import '../util/constants.dart';
 import '../navigation_helper.dart';
@@ -20,9 +22,12 @@ class _CreateChatroomState extends State<CreateChatroomScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider<CreateChatroomBloc>(
-      create: (context) => CreateChatroomBloc(),
-      child: CreateChatroomWidget(parentContext:context)
+    return BlocProvider<MainBloc>(
+      create: (context) => MainBloc(),
+      child: BlocProvider<CreateChatroomBloc>(
+        create: (context) => CreateChatroomBloc(),
+        child: CreateChatroomWidget(parentContext:context)
+      )
     );
   }
 
@@ -39,44 +44,60 @@ class CreateChatroomWidget extends StatelessWidget {
           title: Text("Select user"),
         ),
         body: BlocBuilder(
-            bloc: BlocProvider.of<CreateChatroomBloc>(context),
-            builder: (context, CreateChatroomState state) {
-              if (state.canceled) {
-                return Center(
-                  child: Text(
-                    "unable to create chatroom now: opp user ratchet channel deletion still pending",
-                    style: TextStyle(fontSize: 16)),
-                );
-              }
-              if (state.isLoading) {
-                return Center(
-                  child: CircularProgressIndicator(
-                    strokeWidth: 4.0,
-                  ),
-                );
-              }
-              return ListView.builder(
-                itemBuilder: (context, index) {
-                  final unableToStartChat = BlocProvider.of<CreateChatroomBloc>(context).unableToStartChat(state.users[index]);
-                  final requestedToStartChat = state.requestStartChatUids.contains(state.users[index].uid);
-                  return InkWell(
-                      child: _buildItem(state.users[index], unableToStartChat, requestedToStartChat),
-                      onTap: unableToStartChat
-                      ? () {
-                        showDialog(
-                          context: context, child: _buildDialog(context, state.users[index]));
-                        }
-                      : () async {
-                          requestedToStartChat
-                          ? BlocProvider.of<CreateChatroomBloc>(context).startChatUponRequest(state.users[index], this)
-                          : BlocProvider.of<CreateChatroomBloc>(context).startChat(state.users[index], this);
-                        }
-                  );
-                },
-                itemCount: state.users.length,
-                padding: EdgeInsets.all(UIConstants.SMALLER_PADDING),
-              ); 
-            }));
+          bloc: BlocProvider.of<MainBloc>(context),
+          builder: (context, MainState mainState){
+            if(mainState.isLoading){
+              return CircularProgressIndicator();
+            }else{
+              final usersWithExistingChatrooms = mainState.chatrooms.map((room)=>room.participants.first.uid);
+              return BlocBuilder(
+                  bloc: BlocProvider.of<CreateChatroomBloc>(context),
+                  builder: (context, CreateChatroomState state) {
+                    if (state.canceled) {
+                      return Center(
+                        child: Text(
+                          "unable to create chatroom now: opp user ratchet channel deletion still pending",
+                          style: TextStyle(fontSize: 16)),
+                      );
+                    }
+                    if (state.isLoading) {
+                      return Center(
+                        child: CircularProgressIndicator(
+                          strokeWidth: 4.0,
+                        ),
+                      );
+                    }
+                    final usersWithNoExistingChatrooms = state.users.where(
+                      (u)=>(!usersWithExistingChatrooms.contains(u.uid))
+                    ).toList();
+                    return ListView.builder(
+                      itemBuilder: (context, index) {
+                        final unableToStartChat = BlocProvider.of<CreateChatroomBloc>(context).unableToStartChat(usersWithNoExistingChatrooms[index]);
+                        final requestedToStartChat = state.requestStartChatUids.contains(usersWithNoExistingChatrooms[index].uid);
+                        return InkWell(
+                            child: _buildItem(usersWithNoExistingChatrooms[index], unableToStartChat, requestedToStartChat),
+                            onTap: unableToStartChat
+                            ? () {
+                              showDialog(
+                                context: context, child: _buildDialog(context, usersWithNoExistingChatrooms[index]));
+                              }
+                            : () async {
+                                requestedToStartChat
+                                ? BlocProvider.of<CreateChatroomBloc>(context).startChatUponRequest(usersWithNoExistingChatrooms[index], this)
+                                : BlocProvider.of<CreateChatroomBloc>(context).startChat(usersWithNoExistingChatrooms[index], this);
+                              }
+                        );
+                      },
+                      itemCount: usersWithNoExistingChatrooms.length,
+                      padding: EdgeInsets.all(UIConstants.SMALLER_PADDING),
+                    ); 
+                  });
+              
+            }
+          },
+        )
+        
+    );
   }
 
   Widget _buildItem(User user, bool unableToStartChat, bool requestedToStartChat) {
